@@ -246,7 +246,11 @@ classdef beamformed_data < uff
             end
             switch class(h.scan)
                 case 'uff.linear_scan'
-                    img = reshape(envelope,[h.scan.N_z_axis h.scan.N_x_axis size(h.data,4)]);
+                    if(1) %%added to get images with different angles without compounding
+                        img = reshape(envelope,[h.scan.N_z_axis h.scan.N_x_axis size(h.data,3) size(h.data,4)]);
+                    else
+                        img = reshape(envelope,[h.scan.N_z_axis h.scan.N_x_axis size(h.data,4)]);
+                    end
                 case 'uff.sector_scan'
                     img = reshape(envelope,[h.scan.N_depth_axis h.scan.N_azimuth_axis size(h.data,4)]);
                 otherwise
