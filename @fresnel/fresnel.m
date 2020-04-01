@@ -1,10 +1,12 @@
 classdef fresnel < handle
-%fresnel   fresnel definition
+%FRESNEL lightweight, open-source ultrasound simulator
 %
 %   See also PULSE, BEAM, PHANTOM, PROBE
-
-%   authors: Alfonso Rodriguez-Molares (alfonso.r.molares@ntnu.no)
-%   $Date: 2017/02/24 $
+%
+%   authors: Alfonso Rodriguez-Molares <alfonso.r.molares@ntnu.no>
+%            Stefano Fiorentini <stefano.fiorentini@ntnu.no>
+%
+%   $Date: 2020/01/04$
 
     %% public properties
     properties  (Access = public)
@@ -27,7 +29,7 @@ classdef fresnel < handle
     
     %% private properties
     properties  (Access = private)   
-        version='v1.0.7';  % fresnel version
+        version='v1.1.0';  % fresnel version
     end
     
     %% constructor
@@ -67,17 +69,18 @@ classdef fresnel < handle
             bw = h.pulse.fractional_bandwidth;
             
             %% minimum distance for including geometric dispersion
-            delta0=4*pi*0.1e-3;
+            delta0 = 4*pi*0.1e-3;
 
             % save the data into a CHANNEL_DATA structure
-            out_dataset=uff.channel_data();
-            out_dataset.probe=h.probe();
-            out_dataset.pulse=h.pulse();
-            out_dataset.phantom=h.phantom();
-            out_dataset.sequence=h.sequence();
-            out_dataset.sampling_frequency=h.sampling_frequency();
-            out_dataset.sound_speed=h.phantom.sound_speed;
-          
+            out_dataset = uff.channel_data();
+            out_dataset.probe = h.probe();
+            out_dataset.pulse = h.pulse();
+            out_dataset.phantom = h.phantom();
+            out_dataset.sequence = h.sequence();
+            out_dataset.sampling_frequency = h.sampling_frequency();
+            out_dataset.sound_speed = h.phantom.sound_speed;
+            out_dataset.PRF = h.PRF;
+
             
             % computing geometry relations to the point
             distance  = sqrt((h.phantom.x.'-h.probe.x).^2+(h.phantom.y.'-h.probe.y).^2+(h.phantom.z.'-h.probe.z).^2);
@@ -95,15 +98,14 @@ classdef fresnel < handle
             
             min_range = min(distance(:));
             max_range = max(distance(:));
-            min_delay = min([h.sequence(:).apodization_values], [], 'all');
-            max_delay = max([h.sequence(:).apodization_values], [], 'all');
+            min_delay = min([h.sequence(:).delay_values], [], 'all');
+            max_delay = max([h.sequence(:).delay_values], [], 'all');
             
             time_1w = ((min_range/c0 - 8/f0/bw + min_delay):1/fs:(max_range/c0 + 8/f0/bw + max_delay)).';                                                  % time vector [s]
             time_2w = ((2*min_range/c0 - 8/f0/bw + min_delay):1/fs:(2*max_range/c0 + 8/f0/bw + max_delay)).';                                               % time vector [s]
-            N_samples = length(time_2w);                                                                              % number of time samples
+            N_samples = length(time_2w);  % number of time samples
             
-            % check if there wave delays are imposed in the sequence
-            % definition
+            % Check whether delays are imposed in each sequence
             if any(abs([h.sequence.delay])>0)
                 out_dataset.initial_time = 0;
                 wave_delays=true;
@@ -111,24 +113,26 @@ classdef fresnel < handle
                 out_dataset.initial_time = time_2w(1);
                 wave_delays  = false;
             end
-            
-            out_dataset.data = zeros([N_samples,h.N_elements,h.N_waves]);
-            out_dataset.PRF = h.PRF;
-            
+                        
             F = griddedInterpolant();
             F.Method = 'linear';
             F.ExtrapolationMethod = 'none';
             F.GridVectors = {time_1w};
 
-            % the wave loop
-            receive_signal = zeros([N_samples,h.N_elements,h.phantom.N_points]);
+            % Preallocating memory
+            receive_signal = zeros([N_samples, h.N_elements, h.phantom.N_points]);
+            channel_data = zeros([N_samples, h.N_elements, h.N_waves]);
+            
+            w = waitbar(0, 'Generating channel data...');
             for n_wave=1:h.N_waves
                 
-                % computing the transmit signal
-                transmit_delay = time_1w - (propagation_delay + h.sequence(n_wave).delay_values.');
-                transmit_signal = sum(h.pulse.signal(transmit_delay).*h.sequence(n_wave).apodization_values.'.*attenuation, 2);
+                waitbar(n_wave/h.N_waves, w)
                 
-                % computing the receive signal
+                % Computing the transmit signal
+                transmit_delay = time_1w - (propagation_delay + h.sequence(n_wave).delay_values.');
+                transmit_signal = sum(h.pulse.signal(transmit_delay).*h.sequence(n_wave).apodization_values.*attenuation, 2);
+                
+                % Computing the receive signal
                 receive_delay = time_2w - propagation_delay;
                 if wave_delays
                     receive_delay = receive_delay + h.sequence(n_wave).delay-time_2w(1);
@@ -138,8 +142,12 @@ classdef fresnel < handle
                     F.Values = transmit_signal(:,1,n_point);
                     receive_signal(:,:,n_point) = F(receive_delay(:,:,n_point));
                 end
-                out_dataset.data(:,:,n_wave) = sum(receive_signal.*attenuation, 3, 'omitnan');
+                
+                % Sum the contributions from all of the point
+                channel_data(:,:,n_wave) = sum(receive_signal.*attenuation, 3, 'omitnan');
             end
+            close(w)
+            out_dataset.data = channel_data;
         end
     end
     
@@ -147,27 +155,27 @@ classdef fresnel < handle
     methods  
         function set.phantom(h,in_phantom)
             assert(isa(in_phantom,'uff.phantom'), 'The phantom is not a PHANTOM class. Check HELP PHANTOM.');
-            h.phantom=in_phantom;
+            h.phantom = in_phantom;
         end
         function set.pulse(h,in_pulse)
             assert(isa(in_pulse,'uff.pulse'), 'The pulse is not a PULSE class. Check HELP PULSE.');
-            h.pulse=in_pulse;
+            h.pulse = in_pulse;
         end
         function set.probe(h,in_probe)
             assert(isa(in_probe,'uff.probe'), 'The probe is not a PROBE class. Check HELP PROBE.');
-            h.probe=in_probe;
+            h.probe = in_probe;
         end
         function set.sequence(h,in_sequence)
             assert(isa(in_sequence,'uff.wave'), 'The sequence members are not a WAVE class. Check HELP WAVE.');
-            h.sequence=in_sequence;
+            h.sequence = in_sequence;
         end
         function set.sampling_frequency(h,in_sampling_frequency)
             validateattributes(in_sampling_frequency, {'numeric'}, {'scalar'})
-            h.sampling_frequency=in_sampling_frequency;
+            h.sampling_frequency = in_sampling_frequency;
         end       
         function set.PRF(h,in_PRF)
             validateattributes(in_PRF, {'numeric'}, {'scalar'})
-            h.PRF=in_PRF;
+            h.PRF = in_PRF;
         end       
     end
     
