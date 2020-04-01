@@ -46,8 +46,7 @@ classdef fresnel < handle
     %% set methods
     methods  
         function out_dataset=go(h)
-            disp(sprintf('USTB''s Fresnel impulse response simulator (%s)',h.version));
-            disp('---------------------------------------------------------------');
+            fprintf(1, 'USTB Fresnel impulse response simulator (%s)\n', h.version);
             
             %% checking we have all we need
             assert(~isempty(h.probe),'The PROBE parameter is not set.');
@@ -56,18 +55,9 @@ classdef fresnel < handle
             assert(~isempty(h.pulse),'The PULSE parameter is not set.');
             assert(~isempty(h.sequence),'The SEQUENCE parameter is not set.');
             assert(~isempty(h.sampling_frequency),'The SAMPLING_FREQUENCY parameter is not set.');
-            assert(length(h.phantom)==1,'Only single frames are supported');
 
             % checking number of elements
             assert(h.probe.N_elements==h.sequence(1).N_elements,'Mismatch in the number of elements in probe and the size of delay and apodization vectors in beam');
-           
-            %% unwrapping the signal
-            focusing_delay=zeros(1,h.N_elements,h.N_waves);
-            apodization=zeros(1,h.N_elements,h.N_waves);
-            for n_wave=1:h.N_waves 
-                focusing_delay(1,:,n_wave)=h.sequence(n_wave).delay_values;
-                apodization(1,:,n_wave)=h.sequence(n_wave).apodization_values;
-            end
             
             c0 = h.phantom.sound_speed;
             f0 = h.pulse.center_frequency;
@@ -105,8 +95,8 @@ classdef fresnel < handle
             
             min_range = min(distance(:));
             max_range = max(distance(:));
-            min_delay = min(focusing_delay(:));
-            max_delay = max(focusing_delay(:));
+            min_delay = min([h.sequence(:).apodization_values], [], 'all');
+            max_delay = max([h.sequence(:).apodization_values], [], 'all');
             
             time_1w = ((min_range/c0 - 8/f0/bw + min_delay):1/fs:(max_range/c0 + 8/f0/bw + max_delay)).';                                                  % time vector [s]
             time_2w = ((2*min_range/c0 - 8/f0/bw + min_delay):1/fs:(2*max_range/c0 + 8/f0/bw + max_delay)).';                                               % time vector [s]
@@ -136,7 +126,7 @@ classdef fresnel < handle
                 
                 % computing the transmit signal
                 transmit_delay = time_1w - (propagation_delay + h.sequence(n_wave).delay_values.');
-                transmit_signal = sum(h.pulse.signal(transmit_delay).*apodization(:,:,n_wave).*attenuation, 2);
+                transmit_signal = sum(h.pulse.signal(transmit_delay).*h.sequence(n_wave).apodization_values.'.*attenuation, 2);
                 
                 % computing the receive signal
                 receive_delay = time_2w - propagation_delay;
@@ -149,14 +139,6 @@ classdef fresnel < handle
                     receive_signal(:,:,n_point) = F(receive_delay(:,:,n_point));
                 end
                 out_dataset.data(:,:,n_wave) = sum(receive_signal.*attenuation, 3, 'omitnan');
-                
-                % computing second order scattering
-                %                         extra_distance = sqrt(sum((bsxfun(@minus,current_phantom.points([1:n_p-1 n_p+1:h.N_points],1:3),current_phantom.points(n_p,1:3))).^2,2));
-                %                         extra_delay = extra_distance/current_phantom.sound_speed;
-                %                         extra_attenuation= 10.^(-current_phantom.alpha*(extra_distance/1e-2)*(h.pulse.center_frequency/1e6)).*delta0./(4*pi*extra_distance);
-                %                         for nnp=1:length(extra_distance)
-                %                             h.reverb(:,:,n_w,n_f)=h.reverb(:,:,n_w,n_f)+bsxfun(@times,interp1(time_1w,transmit_signal,delayed_time-extra_delay(nnp),'linear',0),attenuation.*extra_attenuation(nnp)).';
-                %                         end
             end
         end
     end
@@ -180,11 +162,11 @@ classdef fresnel < handle
             h.sequence=in_sequence;
         end
         function set.sampling_frequency(h,in_sampling_frequency)
-            assert(numel(in_sampling_frequency)==1, 'The sampling frequency must be a scalar');
+            validateattributes(in_sampling_frequency, {'numeric'}, {'scalar'})
             h.sampling_frequency=in_sampling_frequency;
         end       
         function set.PRF(h,in_PRF)
-            assert(numel(in_PRF)==1, 'The PRF must be a scalar');
+            validateattributes(in_PRF, {'numeric'}, {'scalar'})
             h.PRF=in_PRF;
         end       
     end
