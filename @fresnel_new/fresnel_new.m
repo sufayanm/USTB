@@ -1,4 +1,4 @@
-classdef fresnel < handle
+classdef fresnel_new < handle
 %FRESNEL lightweight, open-source ultrasound simulator
 %
 %   See also PULSE, BEAM, PHANTOM, PROBE
@@ -34,7 +34,7 @@ classdef fresnel < handle
     
     %% constructor
     methods (Access = public)
-        function h=fresnel()
+        function h=fresnel_new()
             %fresnel   Constructor of fresnel class
             %
             %   Syntax:
@@ -47,7 +47,7 @@ classdef fresnel < handle
     
     %% set methods
     methods  
-        function out_dataset=go(h)
+        function out_dataset = go(h)
             fprintf(1, 'USTB Fresnel impulse response simulator (%s)\n', h.version);
             
             %% checking we have all we need
