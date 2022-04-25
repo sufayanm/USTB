@@ -70,17 +70,28 @@ s.PSF_params.acq.alphaRx = [-10 -5 0 5 10]*pi/180;
 s.PSF_params.scan.rx_apod = 'tukey25';
 s.PSF_params.scan.xStart = -5e-3;
 s.PSF_params.scan.xEnd = 5e-3;
+s.PSF_params.scan.Nx = 256;
 s.PSF_params.scan.zStart = 5e-3;
 s.PSF_params.scan.zEnd = 25e-3;
+s.PSF_params.scan.Nz = 256;
+
 % Runtime params
 s.PSF_params.run.chunkSize = 100;
 
 %% DEFINE PHANTOM AND PSF FUNCTIONS
-s.phantom_function = @Phantom_small2Dtube;
+s.phantom_function = @Phantom_gradient2Dtube;
 s.phantom_params = []; % this structure may contain phantom parameters
-s.phantom_params.btf = 0;
+s.phantom_params.btf = 60;
+s.phantom_params.noFlowLines = 3;    % Tube diameter = depthstep*(noFlowLines-1)
+s.phantom_params.depthstep = 0.0001; % NB: Needs to be sufficiently small for given application - in the order of lambda/2;
+
+% To output true velocities in phantom, define grid
+myX = linspace(s.PSF_params.scan.xStart,s.PSF_params.scan.xEnd,s.PSF_params.scan.Nx);
+myZ = linspace(s.PSF_params.scan.zStart,s.PSF_params.scan.zEnd,s.PSF_params.scan.Nz);
+[X,Z] =  meshgrid(myX,myZ);
+
 % make phantom
-flowField = s.phantom_function(s.phantom_params); % flowField should have timetab and postab fields
+[flowField, GT, s.phantom_params] = s.phantom_function(s.phantom_params,X,Z); % flowField should have timetab and postab fields
 
 
 %% FLUST main loop
