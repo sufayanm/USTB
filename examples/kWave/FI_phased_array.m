@@ -321,20 +321,13 @@ pre.modulation_frequency = f0;
 channel_data_demod = pre.go();
 channel_data = channel_data_demod;
 
-%% Save data
 
-filename_uff = 'kWave';
-if N_point_scatters>0; filename_uff = append(filename_uff,sprintf('_points%i',N_point_scatters)); end
-filename_uff = append(filename_uff,sprintf('_cm%i_ctx%i_v%i.uff',c_m,c_Tx,simulation_version));
+%% Transmit scan setup
 
- channel_data.write([tools.system_data_dir filesep 'UFF files' filesep filename_uff],'channel_data');
-
-    %% Transmit scan setup
-    
-    depth_axis = linspace(domain.z_axis(1), domain.z_axis(end),channel_data.N_samples)';
-    azimuth_axis = angles';
-    scan_tx = uff.sector_scan('depth_axis', depth_axis, 'azimuth_axis', azimuth_axis);
-    scan_tx.write([tools.system_data_dir filesep 'UFF files' filesep filename_uff],'scan');
+depth_axis = linspace(domain.z_axis(1), domain.z_axis(end),channel_data.N_samples)';
+azimuth_axis = angles';
+scan_tx = uff.sector_scan('depth_axis', depth_axis, 'azimuth_axis', azimuth_axis);
+scan_tx.write([tools.system_data_dir filesep 'UFF files' filesep filename_uff],'scan');
 
 %% Beamforming
 %
@@ -374,9 +367,3 @@ cc.input = b_data_delayed;
 b_data_das = cc.go();
 b_data_das.plot();
 caxis([-100,0])
-
-cf = postprocess.coherence_factor;
-cf.input = b_data_delayed;
-cf.dimension = dimension.receive;
-b_data_cf = cf.go();
-cf.CF.plot([],'CF',[],'none')
