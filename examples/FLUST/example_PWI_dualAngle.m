@@ -70,9 +70,14 @@ s.PSF_function = @PSFfunc_LinearProbe_PlaneWaveImaging_rotatedGrid;
 
 % Tranducer and acquisition parameters. Print s.PSF_params after running simulation to see which parameters can be set.
 s.PSF_params = [];     
-% Transducer params
+% Transducer params - resembling L11-3
 s.PSF_params.trans.f0 = 7.8e6;
 s.PSF_params.trans.pulse_duration = 1.5;
+s.PSF_params.trans.pitch = 135e-3;
+s.PSF_params.trans.kerf = 13.5e-3;
+s.PSF_params.trans.element_height = 6e-3;
+
+
 % Acquisition params
 s.PSF_params.acq.alphaTx = [-20 20]*pi/180;
 s.PSF_params.acq.alphaRx = [-20 20]*pi/180; 
@@ -288,21 +293,4 @@ for ensNr = 1:size(realTab,5)
         end
     end
 end
-
-%% check RF signals
-figure, imagesc(abs(hilbert(rfData(:,:,1,2,1)))), title('RF data')
-figure, imagesc(abs(realTab(:,:,1,2,1))), title('abs(IQ) data')
-
-% spectrum analysis
-n           = size(rfData(:,:,1,2,1),1);
-f0          = (-n/2:n/2-1)*(fs/n);
-DFT         = fft(rfData(:,:,1,2,1));
-DFT0        = fftshift(DFT);
-DFT0_power  = abs(DFT0.^2)/n;
-figure, plot(f0, DFT0_power), xlabel('Frequency'), ylabel('Power [dB]'), xlim([-fs/2 fs/2]), title('spectrum sampled at 4*fc after IQ forward and back')
-
-%% save RF signals
-filename = 'PWI_dualAngle_gradient2Dtube_RF.mat';
-
-save([dir, filename], 'rfData')
 
