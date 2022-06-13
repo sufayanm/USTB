@@ -1,14 +1,14 @@
-function [PSFs, p] = PSFfunc_LinearProbe_LinearScan(flowLine, setup) % parameter structure not used in this example
+function [PSFs,p] = PSFfunc_LinearProbe_SectorScan(flowLine, setup) % parameter structure not used in this example
 
-%% Linear scan simulation using Field II and beamforming with USTB
+%% Computation of a CPWI dataset with Field II and beamforming with USTB
 %
-% This code calculates Field II point scatterers of a linear
-% scan using a linear probe, converted into a USTB channel_data object and beamform 
+% This code calculates Field II point scatterers of a sector
+% scan using a linear probe, convert into a USTB channel_data object and beamform 
 % the image using the USTB routines.
 % The Field II simulation program (field-ii.dk) should be in MATLAB's path.
 %
-% date:     23.10.2020
-% based on code written by :  Ole Marius Hoel Rindal <olemarius@olemarius.net>
+% date:     03.10.2017
+% based on code written by :  Ole Marius Hoel RIndal <olemarius@olemarius.net>
 %                             Alfonso Rodriguez-Molares <alfonso.r.molares@ntnu.no>
 % modified by              :  Joergen Avdal <jorgen.avdal@ntnu.no>
 
@@ -34,29 +34,29 @@ set_field('c',c0);              % Speed of sound [m/s]
 set_field('fs',fs);             % Sampling frequency [Hz]
 set_field('use_rectangles',1);  % use rectangular elements
 
-%% Define transducer and pulse parameters
+%% Set default parameters
 
-p.trans.f0                      = 7.7e+06;         % Transducer center frequency [Hz]
-p.trans.probe_bandwidth         = 0.65;
-p.trans.element_height          = 5e-3;            % Height of element [m]
-p.trans.pitch                   = 0.200e-3;        % probe.pitch [m]
-p.trans.kerf                    = 0.020e-3;        % gap between elements [m]
-p.trans.lens_el                 = 2e-2;            % position of the elevation focus
-p.trans.pulse_duration          = 2.5;             % pulse duration [cycles]
-p.trans.N                       = 128;             % number of elements
-p.trans.focal_depth             = 3e-2;            % lateral focus depth
+p.trans.f0              = 2.5e+06;          % Transducer center frequency [Hz]
+p.trans.probe_bandwidth = 0.65;
+p.trans.pitch           = 0.200e-3;
+p.trans.kerf            = 0.020e-3;         % gap between elements [m]
+p.trans.element_height  = 5e-3;
+p.trans.lens_el         = 7e-2;             % position of the elevation focus
+p.trans.N               = 96;
+p.trans.pulse_duration  = 2.5;              % pulse duration [cycles]
+p.trans.focal_depth     = 7e-2;
+p.trans.lambda          = c0/p.trans.f0;    % NB! Will be set again after setup
 
-p.acq.noTx = 6;
-p.acq.F_number_Tx = 3;
-p.acq.F_number_Rx = 1;
-p.acq.Txspacing = p.trans.pitch*2;
-p.acq.noMLA = 4;
+p.acq.TxSpacingDeg = 0.5; %43/180*pi;
+p.acq.noTx=15;                                      % number of angles 
+p.acq.noMLA = 2;
 
-p.scan.zStart = 10e-3;
-p.scan.zEnd = 30e-3;
-p.scan.Nz = 256;
+p.scan.zStart = 60e-3;
+p.scan.zEnd = 80e-3;
+p.scan.Nz = 128;
 
 p.run.chunkSize = 30;
+
 
 %% Import setup parameters
 fields = fieldnames(setup.trans);
@@ -96,17 +96,16 @@ for k=1:size(fields,1)
 end
 
 %% Dependent parameters
-p.trans.lambda                  = c0/p.trans.f0;              % Wavelength [m]
-p.trans.element_width           = p.trans.pitch-p.trans.kerf; % Width of element [m]
-
+p.trans.lambda          = c0/p.trans.f0;    % Wavelength
 
 %% Setup probe object
 probe = uff.linear_array();
-probe.N                 = p.trans.N;                % Number of elements
-probe.element_width     = p.trans.pitch-p.trans.kerf;         % Width of element [m]
-probe.element_height    = p.trans.element_height;   % Height of element [m]
-probe.pitch             = p.trans.pitch;            % probe.pitch [m]
+probe.N                 = p.trans.N;                    % Number of elements
+probe.pitch             = p.trans.pitch;                % probe.pitch [m]
+probe.element_width     = p.trans.pitch-p.trans.kerf;   %  Width of element [m]
+probe.element_height    = p.trans.element_height;       % Height of element [m]
 
+ 
 %% Pulse definition
 % 
 % We then define the pulse-echo signal which is done here using the 
@@ -114,7 +113,7 @@ probe.pitch             = p.trans.pitch;            % probe.pitch [m]
 % <http://field-ii.dk/ 'Field II'> for a more accurate model.
 
 pulse = uff.pulse();
-pulse.fractional_bandwidth = p.trans.probe_bandwidth;        % probe bandwidth [1]
+pulse.fractional_bandwidth = p.trans.probe_bandwidth; 
 pulse.center_frequency = p.trans.f0;
 t0 = (-1/pulse.fractional_bandwidth/p.trans.f0): dt : (1/pulse.fractional_bandwidth/p.trans.f0);
 impulse_response = gauspuls(t0, p.trans.f0, pulse.fractional_bandwidth);
@@ -122,6 +121,9 @@ impulse_response = impulse_response-mean(impulse_response); % To get rid of DC
 
 te = (-p.trans.pulse_duration/2/p.trans.f0): dt : (p.trans.pulse_duration/2/p.trans.f0);
 excitation = square(2*pi*p.trans.f0*te+pi/2);
+one_way_ir = conv(impulse_response,excitation);
+two_way_ir = conv(one_way_ir,impulse_response);
+lag = length(two_way_ir)/2+1;   
 
 
 %% Aperture Objects
@@ -130,6 +132,7 @@ excitation = square(2*pi*p.trans.f0*te+pi/2);
 
 noSubAz=round(probe.element_width/(p.trans.lambda/8));        % number of subelements in the azimuth direction
 noSubEl=round(probe.element_height/(p.trans.lambda/8));       % number of subelements in the elevation direction
+
 Th = xdc_focused_array( probe.N, probe.element_width, probe.element_height, p.trans.kerf, p.trans.lens_el, noSubAz, noSubEl, [0 0 Inf] );
 Rh = xdc_focused_array( probe.N, probe.element_width, probe.element_height, p.trans.kerf, p.trans.lens_el, noSubAz, noSubEl, [0 0 Inf] );
 
@@ -142,32 +145,14 @@ xdc_impulse (Rh, impulse_response);
 xdc_baffle(Rh, 0);
 xdc_center_focus(Rh,[0 0 0]);
  
-elementPos = linspace( -probe.pitch*(probe.N-1)/2, ...
-        probe.pitch*(probe.N-1)/2, probe.N);
  
-
-
-
-
-%% calculate lags
-
-% calculate impulse response lag
-one_way_ir = conv(impulse_response,excitation);
-two_way_ir = conv(one_way_ir,impulse_response);
-lag = length(two_way_ir)/2+1;   
-
-% calculate elevation lag
-elementPosEl = linspace(-probe.element_height/2, probe.element_height/2, 2*noSubEl+1);
-elementPosEl = elementPosEl(2:2:end-1);
-elFocalDelays = sqrt( elementPosEl.^2+p.trans.lens_el.^2)/c0;
-txlagEl = (min(elFocalDelays) - max(elFocalDelays)  )*2;
-
-
 %% Main loop
-F=size(flowLine,1);                        % number of frames
+unitVec = [0 1].';
+F=size(flowLine,1); % number of frames
+% alpha=linspace(-p.acq.alpha_max,p.acq.alpha_max,p.acq.noTx); % vector of angles [rad]
 
-TxCenters = ( -(p.acq.noTx-1)/2:1:(p.acq.noTx-1)/2 )*p.acq.Txspacing;
-
+TxSpacingRad = p.acq.TxSpacingDeg/180*pi;
+alpha = ( -(p.acq.noTx-1)/2:1:(p.acq.noTx-1)/2 )*TxSpacingRad;
 
 for cc = 1:p.run.chunkSize:size(flowLine, 1)
     
@@ -184,26 +169,19 @@ cropend=ceil(1.2*2*max(point_dists)/c0/dt);    % maximum time sample, samples af
 CPW=zeros(cropend-cropstart+1,probe.N,p.acq.noTx,p.run.chunkSize);  % impulse response channel data
  
 %% Compute CPW signals
-
-
 disp('Field II: Computing CPW dataset');
 for f=1:size( point_position,1)
-    clc
-    disp( [num2str(f+cc-1) '/' num2str(F)]);
     for n=1:p.acq.noTx
-        beamOffset = TxCenters(n);
-                
-        % transmit aperture
-        
-        actApinds = abs( elementPos - beamOffset) < p.trans.focal_depth/p.acq.F_number_Tx/2;
-        apTx = zeros( 1, probe.N); apTx(actApinds) = ones;
-        xdc_apodization(Th, 0, apTx);
+        clc
+        disp( [num2str(f+cc-1) '/' num2str(F)]);
 
-        xdc_center_focus(Th,[beamOffset 0 0]);
+        rotMat = [cos( alpha(n) ) sin( alpha(n) ); -sin( alpha(n) ) cos( alpha(n) ) ];
+        rotVec = rotMat*unitVec;
+        focVec = rotVec*p.trans.focal_depth;
         
-        txFocalDelays = sqrt( (elementPos-beamOffset).^2+p.trans.focal_depth.^2)/c0;
-        txFocalDelays = txFocalDelays-min(txFocalDelays); %   zeros( 1, N_elements);
-        xdc_times_focus(Th, 0, txFocalDelays);       
+        % transmit aperture
+        xdc_apodization(Th,0,ones(1,probe.N));
+        xdc_focus(Th, 0, [focVec(1) 0 focVec(2)]);
         
         % receive aperture
         xdc_apodization(Rh, 0, ones(1,probe.N));
@@ -220,10 +198,10 @@ for f=1:size( point_position,1)
         % Save transmit sequence
         seq(n)=uff.wave();
         seq(n).probe=probe;
-        seq(n).source.azimuth=0;
+        seq(n).source.azimuth=alpha(n);
         seq(n).source.distance=p.trans.focal_depth;
         seq(n).sound_speed=c0;
-        seq(n).delay = txlagEl-lag*dt;
+        seq(n).delay = -lag*dt;
     end
 end
 
@@ -249,10 +227,10 @@ channel_data.data = CPW/1e-26; %
 % which is defined with two components: the lateral range and the 
 % depth range. *scan* too has a useful *plot* method it can call.
 
-dTx = p.acq.Txspacing;
-x_axis = linspace(TxCenters(1)-dTx*(p.acq.noMLA-1)/2, TxCenters(end)+dTx*(p.acq.noMLA-1)/2, p.acq.noMLA*p.acq.noTx);
+x_axis = linspace(alpha(1)-TxSpacingRad*(p.acq.noMLA-1)/2, alpha(end)+TxSpacingRad*(p.acq.noMLA-1)/2, p.acq.noMLA*p.acq.noTx);
 z_axis = linspace(p.scan.zStart,p.scan.zEnd,p.scan.Nz);
-sca=uff.linear_scan('x_axis',x_axis.', 'z_axis', z_axis.');
+sca=uff.sector_scan('azimuth_axis',x_axis.', 'depth_axis', z_axis.');
+
 
 %% Pipeline
 %
@@ -262,16 +240,17 @@ sca=uff.linear_scan('x_axis',x_axis.', 'z_axis', z_axis.');
 
 pipe=pipeline();
 pipe.channel_data=channel_data;
+
 myDemodulation=preprocess.fast_demodulation;
 myDemodulation.modulation_frequency = p.trans.f0;
-myDemodulation.downsample_frequency = fs/4;
+myDemodulation.downsample_frequency = fs/4; % at least 4*p.trans.f0 recommended
 
 demod_channel_data=pipe.go({myDemodulation});
 
 pipe.channel_data=demod_channel_data;
 pipe.scan=sca;
-pipe.receive_apodization.window=uff.window.tukey50;
-pipe.receive_apodization.f_number=p.acq.F_number_Rx;
+pipe.receive_apodization.window=uff.window.boxcar;
+pipe.receive_apodization.f_number=0;
 
 %% 
 %
@@ -294,22 +273,16 @@ b_data.modulation_frequency = p.trans.f0; %myDemodulation.modulation_frequency;
 
 if cc == 1
     PSFs = b_data;
-%     PSFs.data(:,:,:,F) = zeros; %trick to preallocate data matrix
     if F > p.run.chunkSize
         PSFs.data(:,:,:,F) = zeros; % trick to allocate data matrix
     else
         PSFs.data = PSFs.data(:,:,:,1:F);
     end
 else
-    PSFs.data(:,:,:,cc:cc+size(point_position,1)-1) = b_data.data(:,:,:,1:size(point_position,1)); %reshape( b_data.data, length( sca.z_axis), length( sca.x_axis), size( flowLine, 1) );
+PSFs.data(:,:,:,cc:cc+size(point_position,1)-1) = b_data.data(:,:,:,1:size(point_position,1)); %reshape( b_data.data, length( sca.z_axis), length( sca.x_axis), size( flowLine, 1) );
 end
 
-% add phase correction for FLUST interpolation step, improves numerical stability
-% steering angle for linear scan is 0 both for Tx and Rx
-stAngle = 0;
-phaseVecsTx = [sin(stAngle); 0; cos(stAngle)];
-phaseVecsRx = [sin(stAngle); 0; cos(stAngle)];
-refDists = flowLine*(phaseVecsTx+phaseVecsRx);
-p.phaseCorr = refDists./c0*p.trans.f0;
+refDists = sqrt( (flowLine(:,1)-PSFs.scan.apex.x ).^2+(flowLine(:,3)-PSFs.scan.apex.x ).^2 );
+p.phaseCorr = 2*refDists./c0*p.trans.f0;
 
 end
