@@ -310,4 +310,12 @@ else
     PSFs.data(:,:,:,cc:cc+size(point_position,1)-1) = b_data.data(:,:,:,1:size(point_position,1)); %reshape( b_data.data, length( sca.z_axis), length( sca.x_axis), size( flowLine, 1) );
 end
 
+% add phase correction for FLUST interpolation step, improves numerical stability
+% steering angle for linear scan is 0 both for Tx and Rx
+stAngle = 0;
+phaseVecsTx = [sin(stAngle); 0; cos(stAngle)];
+phaseVecsRx = [sin(stAngle); 0; cos(stAngle)];
+refDists = flowLine*(phaseVecsTx+phaseVecsRx);
+p.phaseCorr = refDists./c0*p.trans.f0;
+
 end

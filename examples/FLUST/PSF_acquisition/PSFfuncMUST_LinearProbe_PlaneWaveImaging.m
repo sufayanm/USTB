@@ -24,20 +24,17 @@ c0=1540;     % Speed of sound [m/s]
 fs=100e6;    % Sampling frequency [Hz]
 dt=1/fs;     % Sampling step [s] 
 
-%% Transducer definition L11-4v, 128-element linear array transducer
-% 
-% Our next step is to define the ultrasound transducer array we are using.
-% Default values from the L11-4v 128 element Verasonics transducer 
+%% Set default setup parameters
 
 p.trans.f0                = 5.1333e+06;      % Transducer center frequency [Hz]
 p.trans.lambda            = c0/p.trans.f0;   % Wavelength [m]
 p.trans.element_height    = 5e-3;            % Height of element [m]
 p.trans.pitch             = 0.300e-3;        % probe.pitch [m]
 p.trans.kerf              = 0.03e-03;        % gap between elements [m]
-p.trans.element_width     = p.trans.pitch-p.trans.kerf;  % Width of element [m]
 p.trans.lens_el           = 20e-3;           % position of the elevation focus
 p.trans.N                 = 128;             % Number of elements
 p.trans.pulse_duration    = 4.5;             % pulse duration [cycles]
+p.trans.element_width     = p.trans.pitch-p.trans.kerf;  % NB! This will be set again after setup
 
 p.acq.F_number = 1;
 p.acq.alphaTx = 0; %atan(1/2/p.acq.F_number);
@@ -49,8 +46,9 @@ p.scan.Nx = 256;
 p.scan.zStart = 10e-3;
 p.scan.zEnd = 30e-3;
 p.scan.Nz = 256;
-p.scan.rx_apod = 'tukey25';
 
+
+%% Read setup parameters
 fields = fieldnames(setup.trans);
 for k=1:size(fields,1)
     if(isfield(p.trans,fields{k}))
@@ -77,6 +75,11 @@ for k=1:size(fields,1)
         disp(['Scan region setup: ' fields{k} ' is not a valid parameter...']);
     end
 end
+
+%% Dependent Parameters
+p.trans.element_width     = p.trans.pitch-p.trans.kerf;  % Width of element [m]
+
+%% Simulation
 
 param = struct();
 param.fc = p.trans.f0;
@@ -117,4 +120,9 @@ for angleind = 1:N
     end
     PSFs.data(:,:,angleind,:) = reshape( IQb, [length(xs)*length(zs) 1 1 size( flowLine, 1) ] );
 end
+% add phase correction for FLUST interpolation step, improves numerical stability
+phaseVecsTx = [sin(p.acq.alphaTx); zeros( size( p.acq.alphaTx) ); cos(p.acq.alphaTx)];
+phaseVecsRx = [sin(p.acq.alphaRx); zeros( size( p.acq.alphaRx) ); cos(p.acq.alphaRx)];
+refDists = flowLine*(phaseVecsTx+phaseVecsRx);
+p.phaseCorr = refDists./c0*p.trans.f0;
 toc
