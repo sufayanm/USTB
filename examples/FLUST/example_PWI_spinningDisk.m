@@ -2,7 +2,7 @@
 
 % If using FLUST for scientific publications, please cite the original paper
 % Avdal et al: Fast Flow-Line-Based Analysis of Ultrasound Spectral and
-% Vector Velocity Estimators, tUFFC, 2019.
+% Vector Velocity Estimators, tUFFC, 2019. DOI: 10.1109/TUFFC.2018.2887398
 
 % FLUST is a simulation tool based on flowlines, useful for producing many
 % realizations of the same flowfield. The motivation for making FLUST was
@@ -25,8 +25,7 @@
 % 3) Apply your favorite velocity estimator to realizations. 
 % 4) Assess statistical properties of estimator, optimize estimator.
 % 5) Publish results, report statistical properties, make results
-%    reproducible.
-% 6) Cite original FLUST paper
+%    reproducible, cite original paper DOI: 10.1109/TUFFC.2018.2887398
 
 
 clear all;
