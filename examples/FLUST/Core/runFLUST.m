@@ -54,7 +54,7 @@ for kk = 1:length(flowField)
     % phase correction makes PSF interpolation more robust and less
     % dependent on small s.dr
     if isfield(s.PSF_params, 'phaseCorr')
-        demodPhaseRad = interp1( timetab, s.PSF_params.phaseCorr, ts);
+        demodPhaseRad = interp1( timetab, s.PSF_params.phaseCorr, ts).';
         modPhase = gpuArray(exp(1i*2*pi*s.PSF_params.phaseCorr ) );
         demodPhase = exp( -1i*2*pi*demodPhaseRad);
     else
