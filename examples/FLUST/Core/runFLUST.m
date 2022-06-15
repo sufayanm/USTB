@@ -9,7 +9,7 @@ for kk = 1:length(flowField)
     %% resample along flowlines with density s.dr
     prop = diff( flowField(kk).postab, 1);
     propdist = [0; cumsum( sqrt( sum( prop.^2, 2 ) ), 1 ) ];
-    newdists = 0:s.dr:max(propdist);
+    newdists = (0:s.dr:max(propdist)).';
     newtimetab = interp1( propdist, flowField(kk).timetab, newdists);
     newpostab = interp1( flowField(kk).timetab, flowField(kk).postab, newtimetab);
 
@@ -46,7 +46,7 @@ for kk = 1:length(flowField)
     % 'Original' time-vector
     timetab = gpuArray( newtimetab );
     % New (slow) time-vector
-    ts = gpuArray( min(timetab):(1/s.firing_rate)/currFact:max(timetab) );
+    ts = gpuArray( min(timetab):(1/s.firing_rate)/currFact:max(timetab) ).';
 
     Nfft = 2*length(ts)+s.nrSamps*currFact*noAngs*s.nrReps+currFact*noAngs-1;
     
@@ -54,7 +54,7 @@ for kk = 1:length(flowField)
     % phase correction makes PSF interpolation more robust and less
     % dependent on small s.dr
     if isfield(s.PSF_params, 'phaseCorr')
-        demodPhaseRad = interp1( timetab, s.PSF_params.phaseCorr, ts).';
+        demodPhaseRad = interp1( timetab, s.PSF_params.phaseCorr, ts);
         modPhase = gpuArray(exp(1i*2*pi*s.PSF_params.phaseCorr ) );
         demodPhase = exp( -1i*2*pi*demodPhaseRad);
     else
