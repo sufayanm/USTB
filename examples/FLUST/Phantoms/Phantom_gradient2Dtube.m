@@ -60,7 +60,9 @@ if nargin > 1
     gradVec = [-unitVec(3) unitVec(2) unitVec(1)];
     posTab = [X(:).'; Y(:).'; Z(:).'-p.tubedepth];
     radTab = gradVec*posTab;
+    axTab = unitVec.'*posTab;
     GT_vel = (radTab+radius)/2/radius*(p.vel_2-p.vel_1)+p.vel_1;
     GT_vel( abs(radTab) > radius ) = NaN;
+    GT_vel( abs(axTab) > p.flowlength/2 ) = NaN;
     GT = (GT_vel.*unitVec).';
 end

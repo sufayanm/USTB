@@ -67,7 +67,9 @@ if nargin > 1
     posTab = [X(:).'; Y(:).'; Z(:).'-p.tubedepth];
     projTab = posTab-unitVec*unitVec.'*posTab;
     radTab = sqrt( sum( abs( projTab ).^2, 1) );
+    axTab = unitVec.'*posTab;
     GT_vel = (1-(radTab/radius).^2)*(p.vel_high-p.vel_low)+p.vel_low;
     GT_vel( abs(radTab) > radius ) = NaN;
+    GT_vel( abs(axTab) > p.flowlength/2 ) = NaN;
     GT = (GT_vel.*unitVec).';
 end
