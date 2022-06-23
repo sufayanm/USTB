@@ -1,4 +1,4 @@
-function [PSFs,p] = PSFfunc_LinearProbe_PlaneWaveImaging(flowLine, setup) % parameter structure not used in this example
+function [PSFs,p,pipe] = PSFfunc_LinearProbe_PlaneWaveImaging(flowLine, setup) % parameter structure not used in this example
 
 %% Computation of a CPWI dataset with Field II and beamforming with USTB
 %
@@ -33,7 +33,16 @@ p.acq.F_number = 1.7;
 p.acq.alphaTx = 0; %atan(1/2/p.acq.F_number);
 p.acq.alphaRx = 0;
 
+p.scan.xStart = -10e-3;
+p.scan.xEnd = 10e-3;
+p.scan.Nx = 256;
+p.scan.zStart = 10e-3;
+p.scan.zEnd = 30e-3;
+p.scan.Nz = 256;
+p.scan.rx_apod = 'tukey25';
+
 p.run.chunkSize = 101;
+p.run.runMode   = 'full';
 
 %% Update parameters
 
@@ -55,6 +64,15 @@ for k=1:size(fields,1)
     end
 end
 
+fields = fieldnames(setup.scan);
+for k=1:size(fields,1)
+    if(isfield(p.scan,fields{k}))
+        p.scan.(fields{k}) = setup.scan.(fields{k});
+    else
+        disp(['Scan region setup: ' fields{k} ' is not a valid parameter...']);
+    end
+end
+
 fields = fieldnames(setup.run);
 for k=1:size(fields,1)
     if(isfield(p.run,fields{k}))
@@ -69,9 +87,13 @@ end
 p.trans.lambda            = p.trans.c0/p.trans.f0;   % Wavelength [m]
 p.trans.element_width     = p.trans.pitch-p.trans.kerf;  % Width of element [m]
 
+RTstart=floor(1.9*p.scan.zStart/p.trans.c0*p.trans.fs);    %minimum time sample, samples before this will be dumped
+RTend=ceil(2.4*p.scan.zEnd/p.trans.c0*p.trans.fs);    % maximum time sample, samples after this will be dumped
+
 c0=p.trans.c0;     % Speed of sound [m/s]
 fs=p.trans.fs;     % Sampling frequency [Hz]
 dt=1/fs;           % Sampling step [s] 
+runChOnly = strcmp( p.run.runMode, 'chOnly'); % run FLUST on channel data
  
 %% field II initialisation
 % 
@@ -135,10 +157,6 @@ elementPosEl = elementPosEl(2:2:end-1);
 elFocalDelays = sqrt( elementPosEl.^2+p.trans.lens_el.^2)/c0;
 txlagEl = (min(elFocalDelays) - max(elFocalDelays)  )*2;
 
-
-
-
-
 %% Define plane wave sequence
 % Define the start_angle and number of angles
 F=size(flowLine,1);                        % number of frames
@@ -148,49 +166,48 @@ alphaRx = p.acq.alphaRx;
 %% Define phantom
 % Define some points in a phantom for the simulation
 
-for cc = 1:p.run.chunkSize:size(flowLine, 1)
-    
-point_position = flowLine(cc:min( cc+p.run.chunkSize-1, size( flowLine,1) ),: );
+if runChOnly
+    p.run.chunkSize = size( flowLine,1);
+end
 
-% Set point amplitudes
+for cc = 1:p.run.chunkSize:size(flowLine, 1)
+
+% Set point properties
+point_position = flowLine(cc:min( cc+p.run.chunkSize-1, size( flowLine,1) ),: );
+point_amplitudes = ones(size(flowLine,1),1);
+
 point_amplitudes = ones(size(point_position,1),1);
 
 %% output data
+Ndown = 4; %downsampling rate
 point_zdists = abs( point_position(:,3) );
 point_dists = sqrt( sum( point_position.^2, 2) );
-cropstart=floor(1.7*min(point_zdists(:))/c0/dt);    %minimum time sample, samples before this will be dumped
-cropend=ceil(1.2*2*max(point_dists)/c0/dt);    % maximum time sample, samples after this will be dumped
+cropstart= max( floor(1.9*min(point_zdists(:))/c0/dt), RTstart);    %minimum time sample, samples before this will be dumped
+cropend= min( ceil(2.4*max(point_dists)/c0/dt), RTend);    % maximum time sample, samples after this will be dumped
+cropstart = cropstart-mod(cropstart-RTstart-1, Ndown)+Ndown-1; % to avoid downsampling issues
 CPW=zeros(cropend-cropstart+1,probe.N,1,p.run.chunkSize);  % impulse response channel data
- 
+
 %% Compute CPW signals
 disp('Field II: Computing CPW dataset');
 for f=1:size(point_position,1)
     for n=1:length(alphaTx)
         clc
         disp( [num2str(f+cc-1) '/' num2str(F)]);
-         
+
         % transmit aperture
         xdc_apodization(Th,0,ones(1,probe.N));
         xdc_times_focus(Th,0,probe.geometry(:,1)'.*sin(alphaTx(n))/c0);
-        
+
         % receive aperture
         xdc_apodization(Rh, 0, ones(1,probe.N));
         xdc_focus_times(Rh, 0, zeros(1,probe.N));
 
         % do calculation
         [v,t]=calc_scat_multi(Th, Rh, point_position(f,:), point_amplitudes(f));
-         
+
         toffset = round(t/dt)-cropstart+1;
         numinds = min( size(v,1), size( CPW,1)-toffset );
         CPW( toffset+(1:numinds),:,n,f)=v(1:numinds,:);
-                 
-        % Save transmit sequence
-        seq(n)=uff.wave();
-        seq(n).probe=probe;
-        seq(n).source.azimuth=alphaTx(n);
-        seq(n).source.distance=Inf;
-        seq(n).sound_speed=c0;
-        seq(n).delay = txlagEl-lag*dt;
     end
 end
 
@@ -198,113 +215,89 @@ end
 % 
 % In this part of the code, we creat a uff data structure to specifically
 % store the captured ultrasound channel data.
+for n=1:length(alphaTx)
+    seq(n)=uff.wave();
+    seq(n).probe=probe;
+    seq(n).source.azimuth=alphaTx(n);
+    seq(n).source.distance=Inf;
+    seq(n).sound_speed=c0;
+    seq(n).delay = txlagEl-lag*dt;
+end
 
 channel_data = uff.channel_data();
 channel_data.sampling_frequency = fs;
 channel_data.sound_speed = c0;
-channel_data.initial_time = (cropstart-1)*dt;
+if runChOnly
+    channel_data.initial_time = (RTstart-1)*dt;
+else
+    channel_data.initial_time = (cropstart-1)*dt;
+end
 channel_data.pulse = pulse;
 channel_data.probe = probe;
 channel_data.sequence = seq;
 channel_data.data = CPW/1e-26; %
 
-
-%% Scan
-%
-% The scan area is defines as a collection of pixels spanning our region of 
-% interest. For our example here, we use the *linear_scan* structure, 
-% which is defined with two components: the lateral range and the 
-% depth range. *scan* too has a useful *plot* method it can call.
-
-p.scan.xStart = -10e-3;
-p.scan.xEnd = 10e-3;
-p.scan.Nx = 256;
-p.scan.zStart = 10e-3;
-p.scan.zEnd = 30e-3;
-p.scan.Nz = 256;
-p.scan.rx_apod = 'tukey25';
-
-fields = fieldnames(setup.scan);
-for k=1:size(fields,1)
-    if(isfield(p.scan,fields{k}))
-        p.scan.(fields{k}) = setup.scan.(fields{k});
-    else
-        disp(['Scan region setup: ' fields{k} ' is not a valid parameter...']);
-    end
-end
-
-sca=uff.linear_scan('x_axis',linspace(p.scan.xStart,p.scan.xEnd,p.scan.Nx).', 'z_axis', linspace(p.scan.zStart,p.scan.zEnd,p.scan.Nz).');
-
-
-%% Pipeline
-%
-% With *channel_data* and a *scan* we have all we need to produce an
-% ultrasound image. We now use a USTB structure *pipeline*, that takes an
-% *apodization* structure in addition to the *channel_data* and *scan*.
-
-pipe=pipeline();
-
-
-pipe.channel_data=channel_data;
-
-myDemodulation=preprocess.fast_demodulation;
-myDemodulation.modulation_frequency = p.trans.f0;
-myDemodulation.downsample_frequency = fs/4; %at least 4*f0 recommended
-
-demod_channel_data=pipe.go({myDemodulation});
-pipe.channel_data = demod_channel_data;
-demodData=demod_channel_data.data;
-
-pipe.scan=sca;
-try
-    pipe.receive_apodization.window=uff.window.(p.scan.rx_apod);
-catch
-    [memb, winNames] = enumeration('uff.window');
-    disp('The rx apodization window is not valid. Use one of the following window functions:')
-    winNames
-end
-pipe.receive_apodization.f_number=p.acq.F_number;
-
 %% 
-%
-% The *pipeline* structure allows you to implement different beamformers 
-% by combination of multiple built-in *processes*. By changing the *process*
-% chain other beamforming sequences can be implemented. It returns yet 
-% another *UFF* structure: *beamformed_data*.
-% 
-% To achieve the goal of this example, we use delay-and-sum (implemented in 
-% the *das_mex()* process) as well as coherent compounding.
-
-
-
 for aa = 1:length( alphaRx)
-    pipe.receive_apodization.tilt = [alphaRx(aa) 0];
-    pipe.channel_data.data = demodData(:,:,ia(aa),:);
-    pipe.channel_data.sequence = seq(ia(aa));
-    bmf = midprocess.das();
-    bmf.code = code.mexFast;
-    b_data=pipe.go({bmf});
+    
+    pipe(aa)=pipeline();
+    pipe(aa).channel_data=channel_data;
     if aa == 1
-        dsize = size( b_data.data);
-        bfData = single( zeros( dsize(1), dsize(2), length( alphaRx), dsize(4) ) );
+        myDemodulation=preprocess.fast_demodulation;
+        myDemodulation.modulation_frequency = p.trans.f0;
+        myDemodulation.downsample_frequency = fs/Ndown; %at least 4*f0 recommended
+        demod_channel_data=pipe(aa).go({myDemodulation});
+        demodData=demod_channel_data.data;
+        demod_channel_data.data = [];
     end
-    bfData(:,:,aa,:) = b_data.data;
+    pipe(aa).channel_data = demod_channel_data;
+    pipe(aa).scan = uff.linear_scan('x_axis',linspace(p.scan.xStart,p.scan.xEnd,p.scan.Nx).', 'z_axis', linspace(p.scan.zStart,p.scan.zEnd,p.scan.Nz).');
+
+    try
+        pipe(aa).receive_apodization.window=uff.window.(p.scan.rx_apod);
+    catch
+        [memb, winNames] = enumeration('uff.window');
+        disp('The rx apodization window is not valid. Use one of the following window functions:')
+        winNames
+    end
+    pipe(aa).receive_apodization.f_number=p.acq.F_number;
+
+    pipe(aa).receive_apodization.tilt = [alphaRx(aa) 0];
+    pipe(aa).channel_data.sequence = seq(ia(aa));
+    if ~runChOnly
+        bmf = midprocess.das();
+        bmf.code = code.mexFast;
+        pipe(aa).channel_data.data = demodData(:,:,ia(aa),:);
+        b_data=pipe(aa).go({bmf});
+        if aa == 1
+            dsize = size( b_data.data);
+            bfData = single( zeros( dsize(1), dsize(2), length( alphaRx), dsize(4) ) );
+        end
+        bfData(:,:,aa,:) = b_data.data;
+    end
 end
 b_data.modulation_frequency = p.trans.f0;
 
-
-if cc == 1
-    PSFs = b_data;
-    if F > p.run.chunkSize
-        PSFs.data = bfData;
-        PSFs.data(:,:,length(alphaRx),F) = zeros; % trick to allocate data matrix
-    else
-        PSFs.data = bfData(:,:,:,1:F);
+if runChOnly
+    PSFs.data = demodData;
+    PSFs.nSamps = length( RTstart:Ndown:RTend);
+    PSFs.nChannels = size( PSFs.data, 2);
+    PSFs.currinds = ( (cropstart:Ndown:cropend)-RTstart )./Ndown+1;
+    for aa = 1:length( alphaRx)
+        pipe(aa).channel_data.data = [];
     end
 else
-    PSFs.data(:,:,:,cc:cc+size(point_position,1)-1) = bfData(:,:,:,1:size(point_position,1)); %reshape( b_data.data, length( sca.z_axis), length( sca.x_axis), size( flowLine, 1) );
-end
-
+    if cc == 1
+        PSFs = b_data;
+        if F > p.run.chunkSize
+            PSFs.data = bfData;
+            PSFs.data(:,:,length(alphaRx),F) = zeros; % trick to allocate data matrix
+        else
+            PSFs.data = bfData(:,:,:,1:F);
+        end
+    else
+        PSFs.data(:,:,:,cc:cc+size(point_position,1)-1) = bfData(:,:,:,1:size(point_position,1)); %reshape( b_data.data, length( sca.z_axis), length( sca.x_axis), size( flowLine, 1) );
+    end
 end
 
 % add phase correction for FLUST interpolation step, improves numerical stability
@@ -312,4 +305,5 @@ p.phaseVecsTx = [sin(alphaTx); zeros( size( alphaTx) ); cos(alphaTx)];
 p.phaseVecsRx = [sin(alphaRx); zeros( size( alphaRx) ); cos(alphaRx)];
 refDists = flowLine*(p.phaseVecsTx+p.phaseVecsRx);
 p.phaseCorr = refDists./c0*p.trans.f0;
+
 end

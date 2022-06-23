@@ -17,20 +17,32 @@ for kk = 1:length(flowField)
 
     %% calculate PSFs at each position (newpostab) along flowline kk
     simStart = tic;
-    [PSFstruct,p] = s.PSF_function(newpostab, s.PSF_params); % PSFs in uff/beamformed_data format
+    if isfield( s.PSF_params.run, 'runMode') && strcmp( s.PSF_params.run.runMode, 'chOnly')
+        [PSFstruct,p,pipe] = s.PSF_function(newpostab, s.PSF_params); % PSFs in channel data format
+    else
+        [PSFstruct,p] = s.PSF_function(newpostab, s.PSF_params); % PSFs in uff/beamformed_data format
+    end
     s.PSF_params = p;
     AsimTime = toc(simStart);
 
     %% reshape PSF data
     noAngs = size( PSFstruct.data, 3);
-    if isa( PSFstruct.scan, 'uff.sector_scan')
-        szZ = length(PSFstruct.scan.depth_axis); % size( PSFs, 1);
-        szX = length(PSFstruct.scan.azimuth_axis); % size( PSFs, 2);
-    elseif isa( PSFstruct.scan, 'uff.linear_scan') || isa( PSFstruct.scan, 'uff.linear_scan_rotated')
-        szZ = length(PSFstruct.scan.z_axis); % size( PSFs, 1);
-        szX = length(PSFstruct.scan.x_axis); % size( PSFs, 2);
+    if isa( PSFstruct, 'uff.beamformed_data')      % beamformed data
+        if isa( PSFstruct.scan, 'uff.sector_scan')
+            szZ = length(PSFstruct.scan.depth_axis); % size( PSFs, 1);
+            szX = length(PSFstruct.scan.azimuth_axis); % size( PSFs, 2);
+        elseif isa( PSFstruct.scan, 'uff.linear_scan') || isa( PSFstruct.scan, 'uff.linear_scan_rotated')
+            szZ = length(PSFstruct.scan.z_axis); % size( PSFs, 1);
+            szX = length(PSFstruct.scan.x_axis); % size( PSFs, 2);
+        end
+        PSFs = reshape( PSFstruct.data, [szZ, szX, noAngs, length( newtimetab)] );
+        currinds = 1:szZ;
+    else                                % channel data
+        PSFs = PSFstruct.data;
+        szZ = PSFstruct.nSamps;
+        szX = PSFstruct.nChannels;
+        currinds = PSFstruct.currinds;
     end
-    PSFs = reshape( PSFstruct.data, [szZ, szX, noAngs, length( newtimetab)] );
     
     
     %% find max velocity and oversampling factor
@@ -128,16 +140,16 @@ for kk = 1:length(flowField)
                 fullRealization = conv2( fNoiseTab, myData_int, 'full');
             end
             fullRealization = permute( fullRealization, [2 1]);
-            fullRealization = reshape( fullRealization, [szZ, length( cinds) size( fullRealization,2) ]);
+            fullRealization = reshape( fullRealization, [], length( cinds), size( fullRealization,2));
 
             
             % Adding of resulting signals to produce a full realization
             totdist = sum( sqrt( sum( diff( flowField(kk).postab,1).^2, 2 ) ), 1);
             totsamp = length( ts);
             weight = totdist/sqrt(totsamp);
-            realTab(:,cinds,:, anglectr, : ) = realTab(:,cinds,:, anglectr, : )+...
+            realTab(currinds,cinds,:, anglectr, : ) = realTab(currinds,cinds,:, anglectr, : )+...
                 gather( weight*reshape( fullRealization(:,:,length(ts)+(anglectr-1)*currFact+(0:currFact*noAngs:s.nrReps*s.nrSamps*currFact*noAngs-1),:), ...
-                [szZ, length( cinds), s.nrSamps, 1, s.nrReps]) );
+                [], length( cinds), s.nrSamps, 1, s.nrReps) );
 
             clc
             disp(['Flow line ' num2str(kk) '/' num2str(length( flowField) )] );
