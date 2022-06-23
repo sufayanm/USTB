@@ -87,7 +87,7 @@ end
 p.trans.lambda            = p.trans.c0/p.trans.f0;   % Wavelength [m]
 p.trans.element_width     = p.trans.pitch-p.trans.kerf;  % Width of element [m]
 
-RTstart=floor(1.9*p.scan.zStart/p.trans.c0*p.trans.fs);    %minimum time sample, samples before this will be dumped
+RTstart=floor(1.85*p.scan.zStart/p.trans.c0*p.trans.fs);    %minimum time sample, samples before this will be dumped
 RTend=ceil(2.4*p.scan.zEnd/p.trans.c0*p.trans.fs);    % maximum time sample, samples after this will be dumped
 
 c0=p.trans.c0;     % Speed of sound [m/s]
@@ -206,8 +206,13 @@ for f=1:size(point_position,1)
         [v,t]=calc_scat_multi(Th, Rh, point_position(f,:), point_amplitudes(f));
 
         toffset = round(t/dt)-cropstart+1;
-        numinds = min( size(v,1), size( CPW,1)-toffset );
-        CPW( toffset+(1:numinds),:,n,f)=v(1:numinds,:);
+        vstart = 1;
+        if toffset < 0
+            vstart = vstart-toffset;
+            toffset = 0;
+        end
+        numinds = min( size(v,1)-vstart+1, size( CPW,1)-toffset );
+        CPW( toffset+(1:numinds),:,n,f)=v(vstart:vstart+numinds-1,:);
     end
 end
 
