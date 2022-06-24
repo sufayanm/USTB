@@ -24,8 +24,11 @@ elseif isa( PSFstruct.scan, 'uff.linear_scan') || isa( PSFstruct.scan, 'uff.line
 end
 PSFs = reshape( PSFstruct.data, [szZ, szX, noAngs, size( testPos,1)] );
 s.PSF_params = p;
-[~, indX] = min( abs( flowCentroid(1)-PSFstruct.scan.x_axis) );
-[~, indZ] = min( abs( flowCentroid(3)-PSFstruct.scan.z_axis) );
+% [~, indX] = min( abs( flowCentroid(1)-PSFstruct.scan.x_axis) );
+% [~, indZ] = min( abs( flowCentroid(3)-PSFstruct.scan.z_axis) );
+[~, myInd] = min( (flowCentroid(1)-PSFstruct.scan.x).^2+(flowCentroid(3)-PSFstruct.scan.z).^2 );
+[indZ, indX] = ind2sub( size( PSFs, [1 2] ), myInd);
+
 
 %% phase correction makes PSF interpolation more robust and allows for smaller s.dr
 if isfield(s.PSF_params, 'phaseCorr')
