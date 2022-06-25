@@ -80,10 +80,10 @@ for kk = 1:length(flowField)
     
     if s.useGPU
         timetab = gpuArray( newtimetab ); % 'Original' time-vector
-        ts = gpuArray( min(timetab):(1/s.firing_rate)/currFact:max(timetab) ); % New (slow) time-vector
+        ts = gpuArray( (min(timetab):(1/s.firing_rate)/currFact:max(timetab) ).' ); % New (slow) time-vector
     else
         timetab = newtimetab;
-        ts = min(timetab):(1/s.firing_rate)/currFact:max(timetab);
+        ts = ( min(timetab):(1/s.firing_rate)/currFact:max(timetab) ).';
     end
     
     Nfft = 2*length(ts)+s.nrSamps*currFact*noAngs*s.nrReps+currFact*noAngs-1;
