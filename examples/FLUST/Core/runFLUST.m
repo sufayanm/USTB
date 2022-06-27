@@ -117,9 +117,9 @@ for kk = 1:length(flowField)
             % scatterers with a time lag t
             fNoiseTab = randn( [length(ts)+s.nrSamps*currFact*noAngs*s.nrReps+currFact*noAngs 1], 'single');
 
-            if contrastMode
+            if isfield(s, 'contrastMode') && s.contrastMode
                 fN_sort = sort( abs( fNoiseTab(:) ) );
-                fN_thresh = fN_sort( round( length( fN_sort)*(1-contrastDensity) ) );
+                fN_thresh = fN_sort( round( length( fN_sort)*(1-s.contrastDensity) ) );
                 fNoiseTab = single( abs(fNoiseTab) >= fN_thresh );
             end
 

@@ -1,4 +1,4 @@
-% Updated 10/11/2020, Joergen Avdal (jorgen.avdal@ntnu.no)
+% Updated 23/06/2022, Joergen Avdal (jorgen.avdal@ntnu.no)
 
 % If using FLUST for scientific publications, please cite the original paper
 % Avdal et al: Fast Flow-Line-Based Analysis of Ultrasound Spectral and
@@ -27,7 +27,7 @@
 % 5) Publish results, report statistical properties, make results
 %    reproducible, cite original paper DOI: 10.1109/TUFFC.2018.2887398
 
-clear all;
+% clear all;
 close all;
 
 % addpath('C:\Users\ingvilek\FieldIIpro\m_files'); 
@@ -35,12 +35,11 @@ close all;
 addpath('Core');
 addpath('Phantoms')
 addpath('PSF_acquisition')
+addpath('Support');
 addpath('..\..'); % ustb main folder
 
 addpath('C:\Users\jorgenav\Documents\MATLAB\Software\MUST');
-addpath('C:\Users\jorgenav\GitProjects\ustb_flust_db\examples\FLUST\Support')
 addpath('C:\Users\jorgenav\Documents\MATLAB\Software\field_IIpro\m_files');
-addpath('C:\Users\jorgenav\GitProjects\ustb_flust_db');
 
 
 s = struct();
@@ -50,30 +49,31 @@ s.firing_rate = 8000; % firing rate of output signal, (Doppler PRF) = (firing ra
 s.nrReps = 100;         % nr of realizations 
 s.nrSamps = 40;       % nr of slow time samples in each realization (Ensemble size)
 
-contrastMode = 0;      % is set to 1, will simulate contrast scatterers propagating in flow field
-contrastDensity = 0.1; % if using contrastMode, determines the density of scatterers, typically < 0.2
+s.contrastMode = 0;      % is set to 1, will simulate contrast scatterers propagating in flow field
+s.contrastDensity = 0.1; % if using contrastMode, determines the density of scatterers, typically < 0.2
 
 %% QUALITY PARAMETERS, SET ONLY ONE OF THESE
 % s.dr = 5e-5;  % spatial discretization along flowlines: lambda/4 or smaller recommended if phase information is important
 s.interpErrorLimit = 4; % FLUST will set s.dr to attain interpolation error smaller than this value in percent
 
 %% PERFORMANCE PARAMETER
-chunksize = 16;         % chunking on scanlines, adjust according to available memory.
+s.chunksize = 16;         % chunking on scanlines, adjust according to available memory.
+s.useGPU = 1;
 
 
 %% DEFINE ACQUSITION SETUP / PSF FUNCTIONS 
-% s.PSF_function = @PSFfunc_LinearProbe_PlaneWaveImaging;
-s.PSF_function = @PSFfuncMUST_LinearProbe_PlaneWaveImaging;
+s.PSF_function = @PSFfunc_LinearProbe_PlaneWaveImaging;
+% s.PSF_function = @PSFfuncMUST_LinearProbe_PlaneWaveImaging;
 
 % Tranducer and acquisition parameters. Print s.PSF_params after running simulation to see which parameters can be set.
 s.PSF_params = [];     
 % Transducer params
-s.PSF_params.trans.f0 = 7.8e6;
+s.PSF_params.trans.f0 = 5.0e6;
 s.PSF_params.trans.pulse_duration = 1.5;
 s.PSF_params.trans.element_height = 5e-3;
-s.PSF_params.trans.pitch = 135e-6;
-s.PSF_params.trans.kerf = 13.5e-6;
-s.PSF_params.trans.N = 128;
+s.PSF_params.trans.pitch = 200e-6;
+s.PSF_params.trans.kerf = 20e-6;
+s.PSF_params.trans.N = 192;
 
 % Acquisition params
 s.PSF_params.acq.alphaTx = [-15 15]*pi/180;
@@ -83,7 +83,7 @@ s.PSF_params.acq.F_number = 0.5;
 s.PSF_params.scan.rx_apod = 'tukey25';
 s.PSF_params.scan.xStart = -5e-3;
 s.PSF_params.scan.xEnd = 5e-3;
-s.PSF_params.scan.Nx = 256;
+s.PSF_params.scan.Nx = 128;
 s.PSF_params.scan.zStart = 15e-3;
 s.PSF_params.scan.zEnd = 25e-3;
 s.PSF_params.scan.Nz = 128;
@@ -100,13 +100,13 @@ s.phantom_function = @Phantom_gradient2Dtube;
 % Phantom parameters. Print s.phantom_params after running simulation to see which parameters can be set.
 s.phantom_params = []; 
 s.phantom_params.btfAZ = 60;
-s.phantom_params.diameter = 0.006;  % Number of flowlines = ceil(diameter/maxLineSpacing)+1
+s.phantom_params.diameter = 0.006; %0.006;  % Number of flowlines = ceil(diameter/maxLineSpacing)+1
 s.phantom_params.maxLineSpacing = 0.0001; % NB: Needs to be sufficiently small for given application - in the order of lambda/2;
-s.phantom_params.vel_low = 0.2;
-s.phantom_params.vel_high = 2;
-s.phantom_params.flowlength = 0.012; 
-% s.phantom_params.vel_1 = 0.02;
-% s.phantom_params.vel_2 = 2.0;
+% s.phantom_params.vel_low = 1;
+% s.phantom_params.vel_high = 1;
+s.phantom_params.flowlength = 0.006; 
+s.phantom_params.vel_1 = 0.5;
+s.phantom_params.vel_2 = 1;
 s.phantom_params.tubedepth = 0.02; %0.03;
 
 % To output true velocities in phantom, define grid
@@ -123,6 +123,7 @@ myY = 0;
 
 
 %% FLUST main loop
+% runFLUST_CPU;
 runFLUST;
 
 %% VISUALIZE FIRST REALIZATION using the built-in beamformed data object

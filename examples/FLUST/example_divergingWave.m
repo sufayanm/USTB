@@ -48,8 +48,8 @@ s.firing_rate = 5000; % firing rate of output signal, (Doppler PRF) = (firing ra
 s.nrReps = 100;         % nr of realizations 
 s.nrSamps = 50;       % nr of slow time samples in each realization (Ensemble size)
 
-contrastMode = 0;      % is set to 1, will simulate contrast scatterers propagating in flow field
-contrastDensity = 0.1; % if using contrastMode, determines the density of scatterers, typically < 0.2
+s.contrastMode = 0;      % is set to 1, will simulate contrast scatterers propagating in flow field
+s.contrastDensity = 0.1; % if using contrastMode, determines the density of scatterers, typically < 0.2
 
 %% QUALITY PARAMETERS, SET ONLY ONE OF THESE
 % s.dr = 5e-5;  % spatial discretization along flowlines: lambda/4 or smaller recommended if phase information is important
