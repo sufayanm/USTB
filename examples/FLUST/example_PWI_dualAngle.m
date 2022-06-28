@@ -41,7 +41,7 @@ close all;
 % addpath('PSF_acquisition')
 
 addpath('H:\MUSIC\software third party\FIELD_II_Pro_2020');
-addpath('H:\MUSIC\staff\anne\_MATLAB_external\20220523_FLUST');
+% addpath('H:\MUSIC\staff\anne\_MATLAB_external\20220523_FLUST');
 addpath('Core');
 addpath('Phantoms')
 addpath('PSF_acquisition')
@@ -106,7 +106,7 @@ s.phantom_params = [];
 s.phantom_params.btfAZ = 90;
 % s.phantom_params.btf = 90;
 s.phantom_params.flowlength = 0.012;
-s.phantom_params.diameter = 0.001; %0.006 % Number of flowlines = ceil(diameter/maxLineSpacing)+1
+s.phantom_params.diameter = 0.006; % Number of flowlines = ceil(diameter/maxLineSpacing)+1
 s.phantom_params.tubedepth = 0.02;
 s.phantom_params.maxLineSpacing = 0.0001; % NB: Needs to be sufficiently small for given application - in the order of lambda/2;
 % s.phantom_params.vel_low = 0.001;
