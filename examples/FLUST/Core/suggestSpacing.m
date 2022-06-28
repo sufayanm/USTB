@@ -32,14 +32,18 @@ s.PSF_params = p;
 
 %% phase correction makes PSF interpolation more robust and allows for smaller s.dr
 if isfield(s.PSF_params, 'phaseCorr')
-    modPhase = gpuArray(exp(1i*2*pi*s.PSF_params.phaseCorr ) );
+    modPhase = exp(1i*2*pi*s.PSF_params.phaseCorr );
+    mPoffset = nP;
+    mP = nP;
 else
     modPhase = ones(1, noAngs);
+    mPoffset = 0;
+    mP = 1;
 end
 
 %% fill in IQ signals at center of PSFs
-latSig = permute( PSFs(indZ,indX,:,1:nP), [4 3 1 2] ).*modPhase(1:nP,:);
-axSig = permute( PSFs(indZ,indX,:,nP+(1:nP) ), [4 3 1 2] ).*modPhase(nP+(1:nP),:);
+latSig = permute( PSFs(indZ,indX,:,1:nP), [4 3 1 2] ).*modPhase(1:mP,:);
+axSig = permute( PSFs(indZ,indX,:,nP+(1:nP) ), [4 3 1 2] ).*modPhase(mPoffset+(1:mP),:);
 
 %% generate interpolation filters
 maxFact = 40;
