@@ -62,7 +62,7 @@ s.useGPU = 1;
 
 
 %% DEFINE ACQUSITION SETUP / PSF FUNCTIONS 
-s.PSF_function = @PSFfunc_LinearProbe_Linearscan;
+s.PSF_function = @PSFfunc_LinearProbe_LinearScan;
 % s.PSF_function = @PSFfuncMUST_LinearProbe_PlaneWaveImaging
 
 % Tranducer and acquisition parameters. Print s.PSF_params after running simulation to see which parameters can be set.
@@ -94,21 +94,16 @@ s.phantom_function = @Phantom_parabolic2Dtube;
 
 % Phantom parameters. Print s.phantom_params after running simulation to see which parameters can be set.
 s.phantom_params = []; 
-%s.phantom_params.btf = 60;
-s.phantom_params.btfAZ = 0;
+s.phantom_params.btfAZ = 60;
 s.phantom_params.diameter = 0.001;  % Number of flowlines = ceil(diameter/maxLineSpacing)+1
 s.phantom_params.maxLineSpacing = 0.0001; % NB: Needs to be sufficiently small for given application - in the order of lambda/2;
-s.phantom_params.vel_low = 1.5;
-s.phantom_params.vel_high = 1.5;
-s.phantom_params.flowlength = 0.003; 
+s.phantom_params.vel_low = 0.8;
+s.phantom_params.vel_high = 1.2;
+s.phantom_params.flowlength = 0.006; 
 s.phantom_params.tubedepth = 0.02; %0.03;
 
 % make phantom, get true velocity and phantom parameters
-% [flowField, s.phantom_params, GT] = s.phantom_function(s.phantom_params,X,Z); % flowField should have timetab and postab fields
-%Y = zeros( size(X) );
 [flowField, s.phantom_params] = s.phantom_function(s.phantom_params); % flowField should have timetab and postab fields
-
-
 
 %% FLUST main loop
 runFLUST;

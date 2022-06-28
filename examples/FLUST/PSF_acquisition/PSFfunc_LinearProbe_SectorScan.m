@@ -123,6 +123,9 @@ two_way_ir = conv(one_way_ir,impulse_response);
 lag = length(two_way_ir)/2+1;   
 
 % calculate elevation lag
+noSubAz=round(probe.element_width/(p.trans.lambda/8));        % number of subelements in the azimuth direction
+noSubEl=round(probe.element_height/(p.trans.lambda/8));       % number of subelements in the elevation direction
+
 elementPosEl = linspace(-probe.element_height/2, probe.element_height/2, 2*noSubEl+1);
 elementPosEl = elementPosEl(2:2:end-1);
 elFocalDelays = sqrt( elementPosEl.^2+p.trans.lens_el.^2)/c0;
@@ -131,9 +134,6 @@ txlagEl = (min(elFocalDelays) - max(elFocalDelays)  )*2;
 %% Aperture Objects
 % Next, we define the the mesh geometry with the help of Field II's
 % *xdc_focused_array* function.
-
-noSubAz=round(probe.element_width/(p.trans.lambda/8));        % number of subelements in the azimuth direction
-noSubEl=round(probe.element_height/(p.trans.lambda/8));       % number of subelements in the elevation direction
 
 Th = xdc_focused_array( probe.N, probe.element_width, probe.element_height, p.trans.kerf, p.trans.lens_el, noSubAz, noSubEl, [0 0 Inf] );
 Rh = xdc_focused_array( probe.N, probe.element_width, probe.element_height, p.trans.kerf, p.trans.lens_el, noSubAz, noSubEl, [0 0 Inf] );

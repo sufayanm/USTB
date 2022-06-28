@@ -72,7 +72,7 @@ s.PSF_params.trans.pulse_duration = 1.5;
 s.PSF_params.trans.pitch = 200e-6;
 s.PSF_params.trans.kerf = 20e-6;
 s.PSF_params.trans.element_height = 5e-3;
-s.PSF_params.trans.lens_el         = 7e-2;           % position of the elevation focus
+s.PSF_params.trans.lens_el         = 5e-2;           % position of the elevation focus
 s.PSF_params.trans.N               = 96;
 s.PSF_params.trans.pulse_duration  = 2.5;            % pulse duration [cycles]
 
@@ -96,7 +96,6 @@ s.phantom_function = @Phantom_gradient2Dtube;
 
 % Phantom parameters. Print s.phantom_params after running simulation to see which parameters can be set.
 s.phantom_params = []; 
-%s.phantom_params.btf = 60;
 s.phantom_params.btfAZ = 70;
 s.phantom_params.diameter = 0.003;  % Number of flowlines = ceil(diameter/maxLineSpacing)+1
 s.phantom_params.maxLineSpacing = 0.0001; % NB: Needs to be sufficiently small for given application - in the order of lambda/2;
