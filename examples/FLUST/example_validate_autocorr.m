@@ -5,6 +5,7 @@
 %% Load data
 addpath( 'Estimators');
 addpath( 'Validation');
+addpath( 'Tools');
 
 tag = 'PWI_demo';
 loadBinary(tag);
