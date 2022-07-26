@@ -117,7 +117,7 @@ myY = 0;
 
 
 %% FLUST main loop
-runFLUST_dev;
+runFLUST;
 
 %% VISUALIZE FIRST REALIZATION using the built-in beamformed data object
 firstRealization = realTab(:,:,:,1,1);
