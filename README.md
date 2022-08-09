@@ -20,7 +20,7 @@ The USTB is made possible through the contribution of several labs around the wo
 
 The USTB is still under development, so there might be larger structural changes. The current version in main is;
 
-* v2.3: https://bitbucket.org/ustb/ustb/commits/tag/v2.3.2
+* v2.3: https://bitbucket.org/ustb/ustb/commits/tag/v2.3.3
 
 compared to the previous version
 
