@@ -11,6 +11,7 @@ classdef pulse < uff
         center_frequency           % center frequency [Hz]
         fractional_bandwidth       % probe fractional bandwidth [unitless]
         phase                      % initial phase [rad]
+        waveform                   % transmitted waveform (for example used for match filtering)
     end
     
     
