@@ -203,7 +203,7 @@ classdef das < midprocess
                                            int32(h.dimension));
                     %% MEX CUDA                  
                     case code.mex_gpu
-                        aux_data=mex.das_cuda_opt(data,...
+                        aux_data=mex.das_cuda(data,...
                             sampling_frequency,...
                             initial_time,...
                             tx_apodization,...
@@ -360,10 +360,8 @@ classdef das < midprocess
                             end
                         end % end frame loop
                         
-<<<<<<< HEAD
                         tools.workbar(1);
-=======
->>>>>>> origin/develop
+
                     otherwise
                         error('Unknown code implementation requested');
                 end % end switch
