@@ -19,7 +19,6 @@
 *.exp
 *.pdb
 *.ilk
-+mex/source/MEX-beamformer
 development/
 data/
 !multi_frame_gui.fig
@@ -27,3 +26,8 @@ data/
 !*.keep_this_folder_in_git
 *.eps
 *.m~
+*.vcxproj
+*.vcxproj.user
+x64/
+.vs/
+*.sln

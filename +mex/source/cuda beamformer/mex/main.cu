@@ -1,6 +1,6 @@
 /*================================================
  *
- * gpuBeamformer.cu - CUDA general beamformer for USTB
+ * mex.cu - CUDA general beamformer for USTB
  *
  *
  * MEX file
@@ -17,12 +17,34 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
- /* Mathematical constants */
+#include "..\beamform_iq_kernel.cuh"
+#include "..\beamform_rf_kernel.cuh"
+
+ /* ERROR CHECK FUNCTIONS */
+#define gpuErrchk(arg) { gpuAssert((arg), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char* file, int line)
+{
+	if (code != cudaSuccess)
+	{
+		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:GPU", "CUDA error: %s in file %s line %d\n", cudaGetErrorString(code), file, line);
+	}
+}
+
+#define mexErrchk(arg)  {mexAssert((arg), __FILE__, __LINE__); }
+inline void mexAssert(int err, const char* file, int line)
+{
+	if (err)
+	{
+		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:GPU", "MEX error in file %s line %d\n", file, line);
+	}
+}
+
+// Constants
 #define M_EPS 1E-6
 #define M_PI acosf(-1.0)
 #define M_BLOCK_SIZE 256
 
-/* Compulsory inputs */
+// Compulsory inputs
 #define	M_P         prhs[0]	// channel_data [time, channel, wave, frame]
 #define	M_FS		prhs[1] // sampling frequency (Hz)
 #define M_T0		prhs[2]	// initial time (s)
@@ -36,107 +58,21 @@
 #define	M_FD		prhs[7] // modulation frequency (Hz)
 #define	M_SUM		prhs[8] // sum mode 0 -> NONE, 1->RX, 2->TX, 3->BOTH
 
-/* Optional input */
+// Optional input
 #define	M_VERBOSE	prhs[9] // verbose flag [Optional]
 
-/* Output */
+// Output
 #define	M_D			plhs[0] // delayed data [pixel, channel, wave, frame]
 
-/* Enumeration variable */
+// Enumeration variable
 enum SUM_DIMENSION { NONE = 0, RX, TX, BOTH };
 
 #define VERSION "1.0.0"
 
-/* ERROR CHECK FUNCTIONS */
-#define gpuErrchk(arg) { gpuAssert((arg), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line)
-{
-	if (code != cudaSuccess)
-	{
-		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:GPU", "CUDA error: %s in file %s line %d\n", cudaGetErrorString(code), file, line);
-	}
-}
-#define mexErrchk(arg)  {mexAssert((arg), __FILE__, __LINE__); }
-inline void mexAssert(int err, const char *file, int line)
-{
-	if (err)
-	{
-		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:GPU", "MEX error in file %s line %d\n", file, line);
-	}
-}
-
-/* BEAMFORM KERNEL */
-__global__ void beamform(const unsigned int N_pixels, const unsigned int N_channels, const float Fs, cuFloatComplex* __restrict__ bf_data, cudaTextureObject_t tex, 
-	const float* __restrict__ tx_delay, const float*  __restrict__ rx_delay, const float* __restrict__ tx_apod, const float* __restrict__ rx_apod, const float t0)
-{
-	unsigned int pixel_idx = blockIdx.x*blockDim.x + threadIdx.x; // pixel idx
-	unsigned int pixel_stride = blockDim.x*gridDim.x;
-	unsigned int tid = threadIdx.x;
-
-	__shared__ cuFloatComplex pre_bf_data[M_BLOCK_SIZE];
-	__shared__ cuFloatComplex shared_bf_data[M_BLOCK_SIZE];
-	
-	shared_bf_data[tid].x = 0;
-	shared_bf_data[tid].y = 0;
-
-	for (unsigned int i = pixel_idx; i < N_pixels; i += pixel_stride)
-	{
-		for (unsigned int j = 0; j < N_channels; j++)
-		{
-				float apod = tx_apod[i] * rx_apod[i + j * N_pixels];
-				float delay = tx_delay[i] + rx_delay[i + j * N_pixels];
-				delay -= t0;
-				delay *= Fs;
-
-				pre_bf_data[tid] = tex1DLayered<cuFloatComplex>(tex, delay, j); // For maximum bandwidth usage adiacent threads must fetch adiacent memory locations in texture --> inputSamplingRate ~= outputSamplingRate
-
-				shared_bf_data[tid].x += pre_bf_data[tid].x * apod;
-				shared_bf_data[tid].y += pre_bf_data[tid].y * apod;
-		}
-		bf_data[i].x += shared_bf_data[tid].x;
-		bf_data[i].y += shared_bf_data[tid].y;
-	}
-}
-
-/* BEAMFORM KERNEL W/ PHASE CORRECTION */
-__global__ void beamform_iq(const unsigned int N_pixels, const unsigned int N_channels, const float Fs, cuFloatComplex* __restrict__ bf_data, cudaTextureObject_t tex, 
-	const float* __restrict__ tx_delay, const float* __restrict__ rx_delay, const float* __restrict__ tx_apod, const float* __restrict__ rx_apod, const float t0, const float wd)
-{
-	unsigned int pixel_idx = blockIdx.x*blockDim.x + threadIdx.x; // pixel idx
-	unsigned int pixel_stride = blockDim.x*gridDim.x;
-	unsigned int tid = threadIdx.x;
-
-	__shared__ cuFloatComplex pre_bf_data[M_BLOCK_SIZE];
-	__shared__ cuFloatComplex shared_bf_data[M_BLOCK_SIZE];
-
-	shared_bf_data[tid].x = 0;
-	shared_bf_data[tid].y = 0;
-
-	for (size_t i = pixel_idx; i < N_pixels; i += pixel_stride)
-	{
-		for (size_t j = 0; j < N_channels; j++)
-		{
-			float apod = tx_apod[i] * rx_apod[i + j * N_pixels];
-			float delay = tx_delay[i] + rx_delay[i + j * N_pixels];
-
-			cuFloatComplex phase;
-
-			pre_bf_data[tid] = tex1DLayered<cuFloatComplex>(tex, (delay-t0)*Fs, j);
-
-			sincosf(wd * delay, &phase.y, &phase.x);
-
-			shared_bf_data[tid].x += (pre_bf_data[tid].x*phase.x - pre_bf_data[tid].y*phase.y)*apod;
-			shared_bf_data[tid].y += (pre_bf_data[tid].x*phase.y + pre_bf_data[tid].y*phase.x)*apod;
-		}
-		bf_data[i].x += shared_bf_data[tid].x;
-		bf_data[i].y += shared_bf_data[tid].y;
-	}
-}
-
-void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
+void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 {
 
-	/* CHECK NUMBER OF ARGUMENTS */
+	// CHECK NUMBER OF ARGUMENTS
 	if (nrhs < 9)
 	{
 		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:nrhs", "Too few input arguments");
@@ -150,7 +86,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:nlhs", "Too many output arguments");
 	}
 
-	/* VERBOSE FLAG */
+	// VERBOSE FLAG
 	bool verbose;
 	if (nrhs == 10)
 	{
@@ -161,7 +97,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		verbose = false;
 	}
 
-	/* SUM (NONE/RX/TX/BOTH) */
+	// SUM (NONE/RX/TX/BOTH)
 	SUM_DIMENSION SUM = (SUM_DIMENSION)*mxGetInt32s(M_SUM);
 
 	if (SUM != 3)
@@ -169,15 +105,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexErrMsgTxt("In this implementation only uff.dimension.both is supported");
 	}
 
-	/* CHANNEL DATA */
-	/* check dimensions */
+	// CHANNEL DATA
+	// check dimensions
 	size_t n_dim = (size_t)mxGetNumberOfDimensions(M_P);
 	if (n_dim < 2 || n_dim > 4)
 	{
 		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:Dimensions", "Unknown channel data format. Expected from 2 to 4 dimensions: [time, channel, wave, frame]");
 	}
 	// check size
-	size_t *p_dim = (size_t *)mxGetDimensions(M_P);
+	size_t* p_dim = (size_t*)mxGetDimensions(M_P);
 
 	size_t N_times = p_dim[0];			// number of time samples
 	size_t N_channels = p_dim[1];		// number of channels
@@ -209,7 +145,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	// complex or real
 	bool complex_data = mxIsComplex(M_P);
 
-	/* TX DELAY */
+	// TX DELAY
 	// check dimensions
 	n_dim = (size_t)mxGetNumberOfDimensions(M_DELAY_TX);
 	if (n_dim > 2)
@@ -217,7 +153,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:Dimensions", "Unknown transmit delay format. Expected 2 dimensions: [pixel, wave]");
 	}
 	// check size
-	p_dim = (size_t *)mxGetDimensions(M_DELAY_TX);
+	p_dim = (size_t*)mxGetDimensions(M_DELAY_TX);
 
 	size_t N_pixels = p_dim[0];		// number of pixels
 
@@ -240,7 +176,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:Float", "The transmit delay must be single precision.");
 	}
 
-	/* DELAY RX */
+	// DELAY RX
 	// check dimensions
 	n_dim = (size_t)mxGetNumberOfDimensions(M_DELAY_RX);
 
@@ -249,7 +185,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:Dimensions", "Unknown receive delay format. Expected 2 dimensions: [pixel, channel]");
 	}
 	// check size
-	p_dim = (size_t *)mxGetDimensions(M_DELAY_RX);
+	p_dim = (size_t*)mxGetDimensions(M_DELAY_RX);
 
 	size_t N_pixels_check = p_dim[0];                  // number of pixels
 	if (N_pixels != N_pixels_check)
@@ -275,14 +211,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:Float", "The receive delay must be single precision.");
 	}
 
-	/* APO TX */
+	// APO TX
 	n_dim = (size_t)mxGetNumberOfDimensions(M_APO_TX);
 	if (n_dim > 2)
 	{
 		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:Dimensions", "Unknown transmit apodization format. Expected 2 dimensions: [pixel, wave]");
 	}
 	// check size
-	p_dim = (size_t *)mxGetDimensions(M_APO_TX);
+	p_dim = (size_t*)mxGetDimensions(M_APO_TX);
 
 	N_pixels_check = p_dim[0];   // number of pixels
 
@@ -304,7 +240,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:Float", "The transmit apodization must be single precision.");
 	}
 
-	/* APO RX */
+	// APO RX
 	// check dimensions
 	n_dim = mxGetNumberOfDimensions(M_APO_RX);
 	if (n_dim > 2)
@@ -312,7 +248,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:Dimensions", "Unknown receive apodization format. Expected 2 dimensions: [pixel, channel]");
 	}
 	// check size
-	p_dim = (size_t *)mxGetDimensions(M_APO_RX);
+	p_dim = (size_t*)mxGetDimensions(M_APO_RX);
 
 	N_pixels_check = p_dim[0];       // number of pixels
 	if (N_pixels != N_pixels_check)
@@ -339,7 +275,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexErrMsgIdAndTxt("Toolbox:SRP_SRC:Float", "The receive delay must be single precision.");
 	}
 
-	/* SAMPLING FREQUENCY */
+	// SAMPLING FREQUENCY
 	// check dimensions
 	if (!mxIsScalar(M_FS))
 	{
@@ -354,7 +290,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	float Fs = *mxGetSingles(M_FS);	// Sampling frequency
 
 
-	/* INITIAL TIME */
+	// INITIAL TIME
 	// check dimensions
 	if (!mxIsScalar(M_T0))
 	{
@@ -369,7 +305,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	float t0 = *mxGetSingles(M_T0);
 
 
-	/* MODULATION FREQUENCY */
+	// MODULATION FREQUENCY
 	// check dimension
 	if (!mxIsScalar(M_FD))
 	{
@@ -387,39 +323,32 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	bool IQ;
 	if (fabsf(Fd) > M_EPS)
 	{
-		if (complex_data)
-		{
-			wd = 2 * M_PI * Fd;
-			IQ = true;
-		}
-		else
-		{
-			mexErrMsgIdAndTxt("Toolbox:SRP_SRC:IQ", "Modulation frequency > 0 but the input data is real. Check inputs.");
-		}
+		wd = 2 * M_PI * Fd;
+		IQ = true;
 	}
 	else
 	{
-		wd = 0;
+		wd = 0.0;
 		IQ = false;
 	}
 
-	/* OUTPUT MATRIX */
+	// OUTPUT MATRIX
 	size_t out_size[4];
 	out_size[0] = N_pixels;  // pixels
 	out_size[1] = 1;  // channels
 	out_size[2] = 1;  // waves
 	out_size[3] = N_frames;  // frames
 
-	/* POINTER TO BEAMFORMED DATA */
+	// POINTER TO BEAMFORMED DATA
 	M_D = mxCreateNumericArray(4, (const size_t*)&out_size, mxSINGLE_CLASS, mxCOMPLEX);
-	mxComplexSingle *host_bf_data = mxGetComplexSingles(M_D);
+	mxComplexSingle* host_bf_data = mxGetComplexSingles(M_D);
 	gpuErrchk(cudaHostRegister(host_bf_data, out_size[0] * out_size[1] * out_size[2] * out_size[3] * sizeof(mxComplexSingle), cudaHostRegisterDefault)); // Pin paged memory for asynchronous transfers
 
-	/* POINTER TO CHANNEL_DATA */
-	mxComplexSingle *host_ch_data = mxGetComplexSingles(M_P);
-	gpuErrchk(cudaHostRegister(host_ch_data, N_times*N_channels*N_waves*N_frames * sizeof(mxComplexSingle), cudaHostRegisterDefault)); // Pin paged memory for asynchronous transfers
+	// POINTER TO CHANNEL_DATA
+	mxComplexSingle* host_ch_data = mxGetComplexSingles(M_P);
+	gpuErrchk(cudaHostRegister(host_ch_data, N_times * N_channels * N_waves * N_frames * sizeof(mxComplexSingle), cudaHostRegisterDefault)); // Pin paged memory for asynchronous transfers
 
-	/* VERBOSE LOG */
+	// VERBOSE LOG
 	if (verbose)
 	{
 		mexPrintf("---------------------------------------------------------------\n");
@@ -429,7 +358,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexPrintf(" Vers:  %s\n", VERSION);
 		mexPrintf(" Auth:  Alfonso Rodriguez-Molares <alfonso.r.molares@ntnu.no>\n");
 		mexPrintf(" Auth:  Stefano Fiorentini		  <stefano.fiorentini@ntnu.no>\n");
-		mexPrintf(" Date:  2018/12/27\n");
+		mexPrintf(" Date:  2022/24/10\n");
 		mexPrintf("---------------------------------------------------------------\n");
 
 		if (complex_data)
@@ -461,7 +390,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexPrintf("Frames                          %i\n", N_frames);
 		mexPrintf("Pixels						   %i\n", N_pixels);
 		mexPrintf("Sampling frequency			   %0.2f MHz\n", Fs / 1e6);
-		mexPrintf("Initial time					   %0.2f us\n", t0*1e6);
+		mexPrintf("Initial time					   %0.2f us\n", t0 * 1e6);
 		mexPrintf("Modulation frequency            %0.2f MHz\n", Fd / 1e6);
 		if (IQ)
 		{
@@ -476,47 +405,47 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mexPrintf("---------------------------------------------------------------\n");
 	}
 
-	/* TRANSFER APODIZATION AND DELAY MATRICES TO DEVICE MEMORY */
+	// Transfer delay and apodization matrices to GPU
 	// Retrieve pointer to host arrays
-	float *host_tx_delay = mxGetSingles(M_DELAY_TX);
-	float *host_tx_apod = mxGetSingles(M_APO_TX);
-	float *host_rx_delay = mxGetSingles(M_DELAY_RX);
-	float *host_rx_apod = mxGetSingles(M_APO_RX);
+	float* host_tx_delay = mxGetSingles(M_DELAY_TX);
+	float* host_tx_apod = mxGetSingles(M_APO_TX);
+	float* host_rx_delay = mxGetSingles(M_DELAY_RX);
+	float* host_rx_apod = mxGetSingles(M_APO_RX);
 
 	// Allocate device memory
-	float *device_tx_delay;
-	float *device_tx_apod;
-	float *device_rx_delay;
-	float *device_rx_apod;
+	float* device_tx_delay;
+	float* device_tx_apod;
+	float* device_rx_delay;
+	float* device_rx_apod;
 
-	gpuErrchk(cudaMalloc((void **)&device_tx_delay, N_pixels*N_waves * sizeof(float)));
-	gpuErrchk(cudaMalloc((void **)&device_tx_apod, N_pixels*N_waves * sizeof(float)));
-	gpuErrchk(cudaMalloc((void **)&device_rx_delay, N_pixels*N_channels * sizeof(float)));
-	gpuErrchk(cudaMalloc((void **)&device_rx_apod, N_pixels*N_channels * sizeof(float)));
+	gpuErrchk(cudaMalloc((void**)&device_tx_delay, N_pixels * N_waves * sizeof(float)));
+	gpuErrchk(cudaMalloc((void**)&device_tx_apod, N_pixels * N_waves * sizeof(float)));
+	gpuErrchk(cudaMalloc((void**)&device_rx_delay, N_pixels * N_channels * sizeof(float)));
+	gpuErrchk(cudaMalloc((void**)&device_rx_apod, N_pixels * N_channels * sizeof(float)));
 
 	// Transfer data
-	gpuErrchk(cudaMemcpy(device_tx_delay, host_tx_delay, N_pixels*N_waves * sizeof(float), cudaMemcpyHostToDevice));
-	gpuErrchk(cudaMemcpy(device_tx_apod, host_tx_apod, N_pixels*N_waves * sizeof(float), cudaMemcpyHostToDevice));
-	gpuErrchk(cudaMemcpy(device_rx_delay, host_rx_delay, N_pixels*N_channels * sizeof(float), cudaMemcpyHostToDevice));
-	gpuErrchk(cudaMemcpy(device_rx_apod, host_rx_apod, N_pixels*N_channels * sizeof(float), cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMemcpy(device_tx_delay, host_tx_delay, N_pixels * N_waves * sizeof(float), cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMemcpy(device_tx_apod, host_tx_apod, N_pixels * N_waves * sizeof(float), cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMemcpy(device_rx_delay, host_rx_delay, N_pixels * N_channels * sizeof(float), cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMemcpy(device_rx_apod, host_rx_apod, N_pixels * N_channels * sizeof(float), cudaMemcpyHostToDevice));
 
-	/* BEAMFORMING */
 	// Allocate device memory for beamformed data
-	cuFloatComplex *device_bf_data;
-	cuFloatComplex *device_bf_data_I;
-	cuFloatComplex *device_bf_data_II;
-	gpuErrchk(cudaMalloc((void **)&device_bf_data_I, N_pixels * sizeof(cuFloatComplex)));
-	gpuErrchk(cudaMalloc((void **)&device_bf_data_II, N_pixels * sizeof(cuFloatComplex)));
+	cuFloatComplex* device_bf_data[2];
 
-
-	// Allocate an array of N_waves 1D Layered cudaArray and a cudaTextureObjects
-
-	cudaArray **device_ch_data = (cudaArray **)malloc(N_waves * sizeof(cudaArray *)); // Array of pointers to cudaArrays
-	cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 32, 0, 0, cudaChannelFormatKindFloat); // channel descriptor for a cuFloatComplex type.
-	cudaTextureObject_t *tex = (cudaTextureObject_t *)malloc(N_waves * sizeof(cudaTextureObject_t));
-	for (size_t n = 0; n < N_waves; n++)
+	for (size_t n = 0; n < 2; n++)
 	{
-		gpuErrchk(cudaMalloc3DArray(&device_ch_data[n], &channelDesc, make_cudaExtent(N_times, 0, N_channels), cudaArrayLayered)); // Allocate 1D Layered texture
+		gpuErrchk(cudaMalloc((void**)&device_bf_data[n], N_pixels * sizeof(cuFloatComplex)));
+	}
+
+	// Allocate an array of 1D Layered cudaArray and a cudaTextureObjects
+	// Need 2 elements in the array to allow for asynchronous operations
+	cudaArray** device_ch_data = (cudaArray**)malloc(2 * sizeof(cudaArray*)); // Array of pointers to cudaArrays
+	cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 32, 0, 0, cudaChannelFormatKindFloat); // channel descriptor for a cuFloatComplex type.
+	cudaTextureObject_t* tex = (cudaTextureObject_t*)malloc(2 * sizeof(cudaTextureObject_t));
+
+	for (size_t n = 0; n < 2; n++)
+	{
+		gpuErrchk(cudaMalloc3DArray(&device_ch_data[n], &channelDesc, make_cudaExtent(N_times, 0, N_channels * N_waves), cudaArrayLayered)); // Allocate 1D Layered texture
 
 		// Input data properties
 		cudaResourceDesc resDesc;
@@ -540,96 +469,70 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	dim3 block_size = dim3(M_BLOCK_SIZE);
 	dim3 N_blocks = dim3((N_pixels + block_size.x - 1) / block_size.x);
 
-	/* SETUP CUDA STREAMS FOR ASYNCHRONOUS OPERATIONS */
-	cudaStream_t *wave_stream = (cudaStream_t *)malloc(N_waves * sizeof(cudaStream_t));
-	for (size_t n = 0; n < N_waves; n++)
+	// Setupt cudaStream for asynchronous operations
+	cudaStream_t* frame_stream = (cudaStream_t*)malloc(2 * sizeof(cudaStream_t));
+	for (size_t n = 0; n < 2; n++)
 	{
-		gpuErrchk(cudaStreamCreate(&wave_stream[n]));
+		gpuErrchk(cudaStreamCreate(&frame_stream[n]));
 	}
-	cudaStream_t *frame_stream = (cudaStream_t *)malloc(2 * sizeof(cudaStream_t));
-	gpuErrchk(cudaStreamCreate(&frame_stream[0]));
-	gpuErrchk(cudaStreamCreate(&frame_stream[1]));
 
 	// cudaMemcpy3D properties
 	cudaMemcpy3DParms memcpyParams;
 	memset(&memcpyParams, 0, sizeof(cudaMemcpy3DParms));
-	memcpyParams.extent = make_cudaExtent(N_times, 1, N_channels); // cudaExtent object for a 1D layered texture;
+	memcpyParams.extent = make_cudaExtent(N_times, 1, N_channels * N_waves); // cudaExtent object for a 1D layered texture;
 	memcpyParams.kind = cudaMemcpyHostToDevice;
 
-	/* Command strings to control USTB workbar behaviour */
-	//char update[] = "tools.workbar(%.f/%.f, sprintf('%%s (%%s)', h.name, h.version), 'USTB');";
-	//char update_[100];
-
-	/* mexEvaluate to initiate workbar*/
-	//mexErrchk(mexEvalString("tools.workbar();"));
 
 	// Beamforming loop
 	for (size_t n_frame = 0; n_frame < N_frames; n_frame++)
 	{
-		/* mexEvaluate to update workbar*/
-		//sprintf(update_, update, (float)n_frame, (float)N_frames);
-		//mexErrchk(mexEvalString(update_));
+		// Use module 2 operator to select which cudaStream to send the data to
 
-		if (n_frame % 2)
+		// Copy channel data into dedicated texture memory
+		memcpyParams.dstArray = device_ch_data[n_frame % 2];
+		memcpyParams.srcPtr = make_cudaPitchedPtr(&host_ch_data[n_frame * N_waves * N_channels * N_times], N_times * sizeof(cuFloatComplex), N_times, 1);
+		gpuErrchk(cudaMemcpy3DAsync(&memcpyParams, frame_stream[n_frame % 2]));
+
+		// Set device beamformed data to 0
+		gpuErrchk(cudaMemsetAsync(device_bf_data[n_frame % 2], 0, N_pixels * sizeof(cuFloatComplex), frame_stream[n_frame % 2]));
+
+		// Call beamforming kernel
+		if (!IQ)
 		{
-			device_bf_data = device_bf_data_I;
+			beamform << < N_blocks, block_size, 0, frame_stream[n_frame % 2] >> > (N_pixels, N_channels, N_waves, Fs, device_bf_data[n_frame % 2], tex[n_frame % 2], device_tx_delay,
+				device_rx_delay, device_tx_apod, device_rx_apod, t0, t0 * Fs);
+			gpuErrchk(cudaPeekAtLastError());
 		}
 		else
 		{
-			device_bf_data = device_bf_data_II;
+			beamform_iq << < N_blocks, block_size, 0, frame_stream[n_frame % 2] >> > (N_pixels, N_channels, N_waves, Fs, device_bf_data[n_frame % 2], tex[n_frame % 2], device_tx_delay,
+				device_rx_delay, device_tx_apod, device_rx_apod, t0, wd, t0 * Fs);
+			gpuErrchk(cudaPeekAtLastError());
 		}
-		/* Set device beamformed data to 0 */
-		gpuErrchk(cudaMemsetAsync(device_bf_data, 0, N_pixels * sizeof(cuFloatComplex), frame_stream[n_frame % 2]));
 
-		for (size_t n_wave = 0; n_wave < N_waves; n_wave++)
-		{
-			/* Copy channel data into dedicated texture memory */
-			memcpyParams.dstArray = device_ch_data[n_wave];
-			memcpyParams.srcPtr = make_cudaPitchedPtr(&host_ch_data[n_frame*N_waves*N_channels*N_times + n_wave * N_channels*N_times], N_times * sizeof(cuFloatComplex), N_times, 1);
-			gpuErrchk(cudaMemcpy3DAsync(&memcpyParams, wave_stream[n_wave]));
-
-			/* Kernel to beamform data */
-			if (!IQ)
-			{
-				beamform <<< N_blocks, block_size, 0, wave_stream[n_wave] >>> (N_pixels, N_channels, Fs, device_bf_data, tex[n_wave], &device_tx_delay[n_wave * N_pixels],
-					device_rx_delay, &device_tx_apod[n_wave * N_pixels], device_rx_apod, t0);
-				gpuErrchk(cudaPeekAtLastError());
-			}
-			else
-			{
-				beamform_iq <<< N_blocks, block_size, 0, wave_stream[n_wave] >>> (N_pixels, N_channels, Fs, device_bf_data, tex[n_wave], &device_tx_delay[n_wave * N_pixels],
-					device_rx_delay, &device_tx_apod[n_wave * N_pixels], device_rx_apod, t0, wd);
-				gpuErrchk(cudaPeekAtLastError());
-			}
-		} // end of wave loop
-
-		/* Transfer beamformed data to host */
-		gpuErrchk(cudaStreamSynchronize(wave_stream[N_waves - 1]));
-		gpuErrchk(cudaMemcpyAsync(&host_bf_data[n_frame * N_pixels], device_bf_data, N_pixels * sizeof(cuFloatComplex), cudaMemcpyDeviceToHost, frame_stream[n_frame % 2]));
+		// Transfer beamformed data back to host
+		gpuErrchk(cudaMemcpyAsync(&host_bf_data[n_frame * N_pixels], device_bf_data[n_frame % 2], N_pixels * sizeof(cuFloatComplex), cudaMemcpyDeviceToHost, frame_stream[n_frame % 2]));
 	} // end of frame loop
 
-	/* mexEvaluate to close workbar*/
-	// mexErrchk(mexEvalString("tools.workbar(1);"));
-
-	for (size_t n = 0; n < N_waves; n++)
+	for (size_t n = 0; n < 2; n++)
 	{
-		/* Destroy streams */
-		gpuErrchk(cudaStreamDestroy(wave_stream[n]));
+		// Destroy cudaStreams
+		gpuErrchk(cudaStreamDestroy(frame_stream[n]));
 
-		/* Free Texture memory */
+		// Free Texture memory
 		gpuErrchk(cudaFreeArray(device_ch_data[n]));
 		gpuErrchk(cudaDestroyTextureObject(tex[n]));
+
+		// Free beamformed data memory
+		gpuErrchk(cudaFree(device_bf_data[n]));
 	}
 
-	/* Free device memory */
-	gpuErrchk(cudaFree(device_bf_data_I));
-	gpuErrchk(cudaFree(device_bf_data_II));
 	gpuErrchk(cudaFree(device_tx_apod));
 	gpuErrchk(cudaFree(device_tx_delay));
 	gpuErrchk(cudaFree(device_rx_apod));
 	gpuErrchk(cudaFree(device_rx_delay));
 
-	/* Unpin host memory */
+	// Unpin host memory
 	gpuErrchk(cudaHostUnregister(host_ch_data));
 	gpuErrchk(cudaHostUnregister(host_bf_data));
 }
