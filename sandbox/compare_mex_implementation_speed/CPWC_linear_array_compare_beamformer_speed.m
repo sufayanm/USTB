@@ -12,7 +12,6 @@
 % details.
 %
 % Alfonso Rodriguez-Molares <alfonso.r.molares@ntnu.no>
-% Arun Asokan Nair <anair8@jhu.edu>
 % Stefano Fiorentini <stefano.fiorentini@ntnu.no>
 % Last edited: 03-01-2022
 
