@@ -49,7 +49,7 @@ classdef wave < uff
     properties  (Access = public)
         wavefront = uff.wavefront.spherical % WAVEFRONT enumeration class
         source            % POINT class
-        origin = uff.point('xyz',[0,0,0]); % Default origin of the wave is in the front of the probe, which by convention is at (0,0,0).
+        origin            % POINT class
         apodization       % APODIZATION class
     end
     
@@ -76,6 +76,7 @@ classdef wave < uff
             
             % default values
             if ~isa(h.source, 'uff.point'), h.source = uff.point(); end
+            if ~isa(h.origin, 'uff.point'), h.origin = uff.point(); end
         end
     end
     
@@ -135,7 +136,7 @@ classdef wave < uff
         end
         function h=set.origin(h,in_origin)
             assert(isa(in_origin,'uff.point'), 'The origin is not a POINT class. Check HELP POINT');
-            h.source=in_origin;
+            h.origin=in_origin;
         end
         function h=set.probe(h,in_probe)
             assert(isa(in_probe,'uff.probe'), 'The probe is not a PROBE class. Check HELP PROBE');
