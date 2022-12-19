@@ -10,7 +10,7 @@ end
 %% Get region
 xc_speckle = xc_nonecho;
 zc_speckle = zc_nonecho;
-if isa(b_data.scan,'uff.sector_scan')
+if isa(b_data.scan,'uff.sector_scan')||isa(b_data.scan,'uff.sector_scan_na')
     positions = reshape(b_data.scan.xyz,b_data.scan.N_depth_axis,b_data.scan.N_azimuth_axis,3);
 else
     positions = reshape(b_data.scan.xyz,b_data.scan.N_z_axis,b_data.scan.N_x_axis,3);
