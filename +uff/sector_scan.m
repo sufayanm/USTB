@@ -83,7 +83,7 @@ classdef sector_scan < uff.scan
             h.update_pixel_position();
         end
         function set.depth_axis(h,in_depth_axis)
-            assert(isvector(in_depth_axis)&&isfloat(in_azimuth_axis), 'The input must be a floating point vector.')
+            assert(isvector(in_depth_axis)&&isfloat(in_depth_axis), 'The input must be a floating point vector.')
             h.depth_axis=in_depth_axis;
             h.update_pixel_position();
         end
