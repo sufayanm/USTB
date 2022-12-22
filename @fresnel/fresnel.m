@@ -1,4 +1,4 @@
-classdef fresnel_new < handle
+classdef fresnel < handle
 %FRESNEL lightweight, open-source ultrasound simulator
 %
 %   See also PULSE, BEAM, PHANTOM, PROBE
@@ -6,7 +6,7 @@ classdef fresnel_new < handle
 %   authors: Alfonso Rodriguez-Molares <alfonso.r.molares@ntnu.no>
 %            Stefano Fiorentini <stefano.fiorentini@ntnu.no>
 %
-%   $Date: 2020/01/04$
+%   $Date: 2022/22/12$
 
     %% public properties
     properties  (Access = public)
@@ -29,12 +29,12 @@ classdef fresnel_new < handle
     
     %% private properties
     properties  (Access = private)   
-        version='v1.1.0';  % fresnel version
+        version='v2.0.0';  % fresnel version
     end
     
     %% constructor
     methods (Access = public)
-        function h=fresnel_new()
+        function h=fresnel()
             %fresnel   Constructor of fresnel class
             %
             %   Syntax:
@@ -53,13 +53,12 @@ classdef fresnel_new < handle
             %% checking we have all we need
             assert(~isempty(h.probe),'The PROBE parameter is not set.');
             assert(~isempty(h.phantom),'The PHANTOM parameter is not set.');
-            assert(length(h.phantom)==1,'Only static phantoms are supported');
             assert(~isempty(h.pulse),'The PULSE parameter is not set.');
             assert(~isempty(h.sequence),'The SEQUENCE parameter is not set.');
             assert(~isempty(h.sampling_frequency),'The SAMPLING_FREQUENCY parameter is not set.');
 
             % checking number of elements
-            assert(h.probe.N_elements==h.sequence(1).N_elements,'Mismatch in the number of elements in probe and the size of delay and apodization vectors in beam');
+            assert(any(h.probe.N_elements==[h.sequence.N_elements]),'Mismatch in the number of elements in probe and the size of delay and apodization vectors in beam');
             
             c0 = h.phantom.sound_speed;
             f0 = h.pulse.center_frequency;
@@ -154,27 +153,27 @@ classdef fresnel_new < handle
     %% set methods
     methods  
         function set.phantom(h,in_phantom)
-            assert(isa(in_phantom,'uff.phantom'), 'The phantom is not a PHANTOM class. Check HELP PHANTOM.');
+            validateattributes(in_phantom, {'uff.phantom'}, {'scalar'})
             h.phantom = in_phantom;
         end
         function set.pulse(h,in_pulse)
-            assert(isa(in_pulse,'uff.pulse'), 'The pulse is not a PULSE class. Check HELP PULSE.');
+            validateattributes(in_probe, {'uff.pulse'}, {'scalar'})
             h.pulse = in_pulse;
         end
         function set.probe(h,in_probe)
-            assert(isa(in_probe,'uff.probe'), 'The probe is not a PROBE class. Check HELP PROBE.');
+            validateattributes(in_probe, {'uff.probe'}, {'scalar'})
             h.probe = in_probe;
         end
         function set.sequence(h,in_sequence)
-            assert(isa(in_sequence,'uff.wave'), 'The sequence members are not a WAVE class. Check HELP WAVE.');
+            validateattributes(in_sequence, {'uff.wave'}, {'vector'})
             h.sequence = in_sequence;
         end
         function set.sampling_frequency(h,in_sampling_frequency)
-            validateattributes(in_sampling_frequency, {'numeric'}, {'scalar'})
+            validateattributes(in_sampling_frequency, {'single', 'double'}, {'scalar'})
             h.sampling_frequency = in_sampling_frequency;
         end       
         function set.PRF(h,in_PRF)
-            validateattributes(in_PRF, {'numeric'}, {'scalar'})
+            validateattributes(in_PRF, {'single', 'double'}, {'scalar'})
             h.PRF = in_PRF;
         end       
     end
@@ -196,6 +195,5 @@ classdef fresnel_new < handle
         function value=get.N_frames(h)
             value=ceil(h.N_events/h.N_waves);
         end
-    end
-    
+    end   
 end
