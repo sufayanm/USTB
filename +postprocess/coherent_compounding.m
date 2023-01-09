@@ -9,7 +9,7 @@ classdef coherent_compounding < postprocess
 %            Fabrice Prieur
 %            Stefano Fiorentini <stefano.fiorentini@ntnu.no>
 %
-%   $Last updated: 2022/09/01$
+%   $Last updated: 2023/09/01$
 
     %% constructor
     methods (Access = public)
