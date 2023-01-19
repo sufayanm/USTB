@@ -165,7 +165,7 @@ classdef das < midprocess
 
             data=single(h.channel_data.data);
             if (abs(w0)<eps)
-                data = hilbert(h.channel_data.data);
+                data = hilbert(data);
             end
             
             % create beamformed data class
