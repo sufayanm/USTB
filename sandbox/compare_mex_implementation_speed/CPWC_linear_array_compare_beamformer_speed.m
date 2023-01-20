@@ -20,7 +20,7 @@ close all
 clc
 
 do_demodulation = true;
-nFrames = 1:100:1001;
+nFrames = 1001;
 
 %% Phantom
 x_sca=[zeros(1,7) -15e-3:5e-3:15e-3];
@@ -44,7 +44,7 @@ pul.fractional_bandwidth=0.8;     % fractional bandwidth [unitless]
 
 %% Sequence generation
 
-nPlaneWaves=5;
+nPlaneWaves=16;
 angles=linspace(-10, 10, nPlaneWaves)/180*pi;
 seq=uff.wave();
 
@@ -108,6 +108,8 @@ end
 das_mexFast_time = zeros([length(nFrames), 1]);
 das_mex_gpu_time = zeros([length(nFrames), 1]);
 
+profile on
+
 for n=1:length(nFrames)
     % replicate frames
     channel_data.data=repmat(channel_data.data(:,:,:,1),[1 1 1 nFrames(n)]);
@@ -123,15 +125,18 @@ for n=1:length(nFrames)
     das_mex_gpu_time(n) = toc();
 
     % Time USTB's MEX FAST CPU implementation
-    proc            = midprocess.das();
-    proc.code       = code.mexFast;
-    proc.dimension  = dimension.both;
-    fprintf(1, 'Processing %d frames: MEX C FAST\n', nFrames(n))
-    tic()
-    bf_data_mexFast_cpu = pipe.go({proc});
-    das_mexFast_time(n) = toc();
+%     proc            = midprocess.das();
+%     proc.code       = code.mexFast;
+%     proc.dimension  = dimension.both;
+%     fprintf(1, 'Processing %d frames: MEX C FAST\n', nFrames(n))
+%     tic()
+%     bf_data_mexFast_cpu = pipe.go({proc});
+%     das_mexFast_time(n) = toc();
 end
 
+profile off
+
+profile viewer
 %% Plot the images for visual inspection of the results
 figure('Color', 'white')
 tiledlayout(1, 2, "TileSpacing", "compact", "Padding", "compact")

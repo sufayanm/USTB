@@ -48,6 +48,22 @@ __global__ void beamform(const size_t N_pixels, const size_t N_channels, const s
 	size_t pixel_idx = blockIdx.x * blockDim.x + threadIdx.x; // pixel idx
 	size_t pixel_stride = blockDim.x * gridDim.x;
 
+	extern __shared__ float t[];
+
+	float *tDelay = t;
+	float *tApod = (float*)&tDelay[blockDim.x*N_waves];
+
+	for (size_t i = pixel_idx; i < N_pixels; i += pixel_stride)
+	{
+		for (size_t j = 0; j < N_waves; j++)
+        {
+			tDelay[threadIdx.x+j*blockDim.x] = tx_delay[i + j * N_pixels];
+			tApod[threadIdx.x+j*blockDim.x] = tx_apod[i + j * N_pixels];
+		}
+	}
+
+	__syncthreads();
+
 	for (size_t i = pixel_idx; i < N_pixels; i += pixel_stride)
 	{
 		for (size_t g = 0; g < N_channels; g++)
@@ -60,11 +76,11 @@ __global__ void beamform(const size_t N_pixels, const size_t N_channels, const s
 
                 for (size_t j = 0; j < N_waves; j++)
                 {
-                    float apod = tx_apod[i + j * N_pixels] * rApod;
+                    float apod = rApod * tApod[threadIdx.x+j*blockDim.x];
 
                     if (apod > 0.0)
                     {
-                        float delay = rDelay + tx_delay[i + j * N_pixels];
+                        float delay = rDelay + tDelay[threadIdx.x+j*blockDim.x];
                         float denay = delay * Fs - i0;
 
                         cuFloatComplex phase;
@@ -72,10 +88,10 @@ __global__ void beamform(const size_t N_pixels, const size_t N_channels, const s
                         __sincosf(wd * delay, &phase.y, &phase.x);
 
                         // For maximum bandwidth usage adiacent threads must fetch adiacent memory locations in texture --> inputSamplingRate ~ outputSamplingRate
-                        cuFloatComplex pre_bf_data = tex1DLayered<cuFloatComplex>(tex, denay, g + j * N_channels);
+                        cuFloatComplex val = tex1DLayered<cuFloatComplex>(tex, denay, g + j * N_channels);
 
-                        bf_data[i].x += (pre_bf_data.x * phase.x - pre_bf_data.y * phase.y) * apod;
-                        bf_data[i].y += (pre_bf_data.x * phase.y + pre_bf_data.y * phase.x) * apod;
+                        bf_data[i].x += (val.x * phase.x - val.y * phase.y) * apod;
+                        bf_data[i].y += (val.x * phase.y + val.y * phase.x) * apod;
                     }
                 }
             }
@@ -242,7 +258,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 			cudaErrorCheck(cudaMemsetAsync(device_bf_data[n_stream], 0, N_pixels * sizeof(cuFloatComplex), frame_stream[n_stream]));
 
 			// Call beamforming kernel
-			beamform <<< N_blocks, block_size, 0, frame_stream[n_stream] >>> (N_pixels, N_channels, N_waves, Fs, device_bf_data[n_stream], tex[n_stream], device_tx_delay,
+			beamform <<< N_blocks, block_size, 2*thread_per_block*N_waves*sizeof(float), frame_stream[n_stream] >>> (N_pixels, N_channels, N_waves, Fs, device_bf_data[n_stream], tex[n_stream], device_tx_delay,
 				device_rx_delay, device_tx_apod, device_rx_apod, i0, wd);
 			cudaErrorCheck(cudaPeekAtLastError());
 		}

@@ -12,5 +12,6 @@ classdef code < int32
       mexFast(2)
       matlab_gpu(3)
       mex_gpu(4)
+      mex_gpu_noTex(5)
    end
 end
