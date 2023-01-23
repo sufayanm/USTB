@@ -39,23 +39,23 @@
 // Constants
 #define eps 1E-6
 #define pi acosf(-1.0)
-#define thread_per_block 256
+#define thread_per_block 64
 
 // Beamforming kernel
-__global__ void beamform(const size_t N_pixels, const size_t N_channels, const size_t N_waves, const float Fs, cuFloatComplex* bf_data, const cudaTextureObject_t tex,
+__global__ void beamform(const int N_pixels, const int N_channels, const int N_waves, const float Fs, cuFloatComplex* bf_data, const cudaTextureObject_t tex,
 	const float* __restrict__ tx_delay, const float* __restrict__ rx_delay, const float* __restrict__ tx_apod, const float* __restrict__ rx_apod, const float i0, const float wd)
 {
-	size_t pixel_idx = blockIdx.x * blockDim.x + threadIdx.x; // pixel idx
-	size_t pixel_stride = blockDim.x * gridDim.x;
+	int pixel_idx = blockIdx.x * blockDim.x + threadIdx.x; // pixel idx
+	int pixel_stride = blockDim.x * gridDim.x;
 
 	extern __shared__ float t[];
 
 	float *tDelay = t;
 	float *tApod = (float*)&tDelay[blockDim.x*N_waves];
 
-	for (size_t i = pixel_idx; i < N_pixels; i += pixel_stride)
+	for (int i = pixel_idx; i < N_pixels; i += pixel_stride)
 	{
-		for (size_t j = 0; j < N_waves; j++)
+		for (int j = 0; j < N_waves; j++)
         {
 			tDelay[threadIdx.x+j*blockDim.x] = tx_delay[i + j * N_pixels];
 			tApod[threadIdx.x+j*blockDim.x] = tx_apod[i + j * N_pixels];
@@ -64,9 +64,9 @@ __global__ void beamform(const size_t N_pixels, const size_t N_channels, const s
 
 	__syncthreads();
 
-	for (size_t i = pixel_idx; i < N_pixels; i += pixel_stride)
+	for (int i = pixel_idx; i < N_pixels; i += pixel_stride)
 	{
-		for (size_t g = 0; g < N_channels; g++)
+		for (int g = 0; g < N_channels; g++)
 		{
 			const float rApod = rx_apod[i + g * N_pixels];
 
@@ -74,7 +74,7 @@ __global__ void beamform(const size_t N_pixels, const size_t N_channels, const s
             {
                 const float rDelay = rx_delay[i + g * N_pixels];
 
-                for (size_t j = 0; j < N_waves; j++)
+                for (int j = 0; j < N_waves; j++)
                 {
                     const float apod = rApod * tApod[threadIdx.x+j*blockDim.x];
 
@@ -257,7 +257,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 			cudaErrorCheck(cudaMemsetAsync(device_bf_data[n_stream], 0, N_pixels * sizeof(cuFloatComplex), frame_stream[n_stream]));
 
 			// Call beamforming kernel
-			beamform <<< N_blocks, block_size, 2*thread_per_block*N_waves*sizeof(float), frame_stream[n_stream] >>> (N_pixels, N_channels, N_waves, Fs, device_bf_data[n_stream], tex[n_stream], device_tx_delay,
+			beamform <<< N_blocks, block_size, 2*thread_per_block*N_waves*sizeof(float), frame_stream[n_stream] >>> ((int) N_pixels, (int) N_channels, (int) N_waves, Fs, device_bf_data[n_stream], tex[n_stream], device_tx_delay,
 				device_rx_delay, device_tx_apod, device_rx_apod, i0, wd);
 			cudaErrorCheck(cudaPeekAtLastError());
 		}

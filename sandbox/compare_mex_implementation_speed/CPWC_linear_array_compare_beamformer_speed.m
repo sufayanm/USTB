@@ -19,41 +19,88 @@ clear all
 close all
 clc
 
+testCase = 1; % 0 = linear/planewave, 1 = sector/focused
 do_demodulation = true;
-nFrames = 1001;
+nFrames = 100;
 
 %% Phantom
-x_sca=[zeros(1,7) -15e-3:5e-3:15e-3];
-z_sca=[5e-3:5e-3:35e-3 20e-3*ones(1,7)];
+switch testCase
+    case 0
+        x_sca=[zeros(1,7), -15e-3:5e-3:15e-3];
+        z_sca=[5e-3:5e-3:35e-3, 20e-3*ones(1,7)];
+    case 1
+        x_sca=[zeros(1,7), -45e-3:15e-3:45e-3];
+        z_sca=[10e-3:15e-3:100e-3, 65e-3*ones(1,7)];
+end
+
 N_sca=length(x_sca);
 pha=uff.phantom();
 pha.sound_speed=1540;            % speed of sound [m/s]
-pha.points=[x_sca.', zeros(N_sca,1), z_sca.', ones(N_sca,1)];    % point scatterer position [m]
+pha.points=[x_sca.', zeros([N_sca,1]), z_sca.', ones([N_sca,1])];    % point scatterer position [m]
 
 %% Probe
-prb=uff.linear_array();
-prb.N=128;                  % number of elements
-prb.pitch=300e-6;           % probe pitch in azimuth [m]
-prb.element_width=270e-6;   % element width [m]
-prb.element_height=5e-3;    % element height [m]
+switch testCase
+    case 0
+        prb=uff.linear_array();
+        prb.N=128;                  % number of elements
+        prb.pitch=300e-6;           % probe pitch in azimuth [m]
+        prb.element_width=270e-6;   % element width [m]
+        prb.element_height=5e-3;    % element height [m]
+    case 1
+        prb=uff.linear_array();
+        prb.N=90;                   % number of elements
+        prb.pitch=220e-6;           % probe pitch in azimuth [m]
+        prb.element_width=200e-6;   % element width [m]
+        prb.element_height=8e-3;    % element height [m]
+
+end
 
 %% Pulse
-pul=uff.pulse();
-pul.center_frequency=5e6;       % transducer frequency [MHz]
-pul.fractional_bandwidth=0.8;     % fractional bandwidth [unitless]
 
+switch testCase
+
+    case 0
+        pul=uff.pulse();
+        pul.center_frequency=7e6;       % transducer frequency [MHz]
+        pul.fractional_bandwidth=0.8;     % fractional bandwidth [unitless]
+
+    case 1
+        pul=uff.pulse();
+        pul.center_frequency=4e6;       % transducer frequency [MHz]
+        pul.fractional_bandwidth=0.8;     % fractional bandwidth [unitless]
+end
 %% Sequence generation
 
-nPlaneWaves=16;
-angles=linspace(-10, 10, nPlaneWaves)/180*pi;
-seq=uff.wave();
+switch testCase
+    case 0
+        nTx=16;
+        angles=linspace(-10, 10, nTx)/180*pi;
+        seq=uff.wave();
 
-for n=1:nPlaneWaves
-    seq(n)=uff.wave();
-    seq(n).probe=prb;
-    seq(n).source.azimuth=angles(n);
-    seq(n).wavefront = uff.wavefront.plane;
-    seq(n).sound_speed=pha.sound_speed;
+        for n=1:nTx
+            seq(n)=uff.wave();
+            seq(n).probe=prb;
+            seq(n).source.azimuth=angles(n);
+            seq(n).wavefront = uff.wavefront.plane;
+            seq(n).sound_speed=pha.sound_speed;
+        end
+    case 1
+        nTx=81; % n transmits
+        F = 6.5e-2; % focus speed
+        angles=linspace(-40, 40, nTx)/180*pi;
+        seq=uff.wave();
+
+        for n=1:nTx
+            seq(n)=uff.wave();
+            seq(n).probe=prb;
+            seq(n).source.azimuth=angles(n);
+            seq(n).source.distance = F;
+            seq(n).wavefront = uff.wavefront.spherical;
+            seq(n).sound_speed=pha.sound_speed;
+        end
+
+    otherwise
+        error("Case not supported")
 end
 
 %% Fresnel simulator
@@ -76,7 +123,12 @@ if do_demodulation
 end
 
 %% Scan
-scan = uff.linear_scan('x_axis',linspace(-2e-2,2e-2,256).', 'z_axis', linspace(0, 4e-2, 512).');
+switch testCase
+    case 0
+        scan = uff.linear_scan('x_axis',linspace(-2e-2,2e-2,256).', 'z_axis', linspace(0, 4e-2, 512).');
+    case 1
+        scan = uff.sector_scan('azimuth_axis',linspace(angles(1),angles(end),256).', 'depth_axis', linspace(0, 13e-2, 768).');
+end
 
 %% Pipeline
 
@@ -85,12 +137,11 @@ pipe.channel_data=channel_data;
 pipe.scan=scan;
 
 pipe.receive_apodization.window=uff.window.hamming;
-pipe.receive_apodization.f_number=2;
+pipe.receive_apodization.f_number=3;
 
-% pipe.transmit_apodization.window=uff.window.none;
 pipe.transmit_apodization.window=uff.window.hamming;
-pipe.transmit_apodization.f_number=2;
-
+pipe.transmit_apodization.f_number=3;
+pipe.transmit_apodization.minimum_aperture = 4e-3 * pipe.transmit_apodization.f_number(1)^2;
 
 proc            = midprocess.das();
 proc.code       = code.mex();
@@ -112,11 +163,11 @@ end
 for n=1:length(nFrames)
     % replicate frames
 
-    channel_data.data=repmat(channel_data.data(:,:,:,1),[1 1 1 nFrames(n)]);
+    channel_data.data=repmat(channel_data.data(:,:,:,1),[1, 1, 1, nFrames(n)]);
 
     % Time USTB's MEX GPU tex 2D implementation
     proc            = midprocess.das();
-    proc.code       = code.mex_gpu_tex2d;
+    proc.code       = code.mex_gpu_tex2D;
     proc.gpu_device = 0;
     proc.dimension  = dimension.both;
     fprintf(1, 'Processing %d frames: MEX CUDA tex 2D\n', nFrames(n))
@@ -124,11 +175,11 @@ for n=1:length(nFrames)
     bf_data_mex_gpu = pipe.go({proc});
     das_mex_gpu_time(n) = toc();
 
-    % Time USTB's MEX GPU tex 1D layered implementation
+    % Time USTB's MEX FAST implementation
     proc            = midprocess.das();
-    proc.code       = code.mex_gpu;
+    proc.code       = code.mexFast;
     proc.dimension  = dimension.both;
-    fprintf(1, 'Processing %d frames: MEX CUDA tex 1D layered\n', nFrames(n))
+    fprintf(1, 'Processing %d frames: MEX FAST\n', nFrames(n))
     tic()
     bf_data_mexFast_cpu = pipe.go({proc});
     das_mexFast_time(n) = toc();
@@ -139,12 +190,29 @@ if isscalar(nFrames)
     profile viewer
 end
 %% Plot the images for visual inspection of the results
+switch class(scan)
+    case "uff.linear_scan"
+        dim = [scan.N_z_axis, scan.N_x_axis];
+
+    case "uff.sector_scan"
+        dim = [scan.N_depth_axis, scan.N_azimuth_axis];
+
+end
+
+X = reshape(scan.x, dim);
+Y = reshape(scan.y, dim);
+Z = reshape(scan.z, dim);
+
+
 figure('Color', 'white')
 tiledlayout(1, 2, "TileSpacing", "compact", "Padding", "compact")
 hAx(1) = nexttile();
-imagesc(scan.x_axis*1e2, scan.z_axis*1e2, ...
-    20*log10(abs(reshape(bf_data_mex_gpu.data(:,end), [scan.N_z_axis, scan.N_x_axis])) / ...
-    max(abs(bf_data_mex_gpu.data(:,end)))), [-40, 0])
+surface(X*1e2, Y*1e2, Z*1e2, ...
+    20*log10(abs(reshape(bf_data_mex_gpu.data(:,end), dim)) / ...
+    max(abs(bf_data_mex_gpu.data(:,end)))), "LineStyle", "none")
+clim([-60, 0])
+view([0, 0])
+set(gca, "ZDir", "reverse")
 grid on
 box on
 axis equal tight
@@ -153,15 +221,18 @@ ylabel("z [cm]")
 title("mex CUDA tex 2D")
 
 hAx(2) = nexttile();
-imagesc(scan.x_axis*1e2, scan.z_axis*1e2, ...
-    20*log10(abs(reshape(bf_data_mexFast_cpu.data(:,end), [scan.N_z_axis, scan.N_x_axis])) / ...
-    max(abs(bf_data_mexFast_cpu.data(:,end)))), [-40, 0])
+surface(X*1e2, Y*1e2, Z*1e2, ...
+    20*log10(abs(reshape(bf_data_mexFast_cpu.data(:,end), dim)) / ...
+    max(abs(bf_data_mexFast_cpu.data(:,end)))), "LineStyle", "none")
+clim([-60, 0])
+view([0, 0])
+set(gca, "ZDir", "reverse")
 grid on
 box on
 axis equal tight
 xlabel("x [cm]")
 ylabel("z [cm]")
-title("mex CUDA tex 1D Layered")
+title("mex FAST")
 
 linkaxes(hAx)
 
@@ -188,7 +259,7 @@ end
 grid on
 box on
 
-legend('MEX CUDA tex 2D', 'MEX CUDA tex 1D Layered', 'Location','Best');
+legend('MEX CUDA tex 2D', 'MEX FAST', 'Location','Best');
 xlabel('Delay operations [1e9]');
 ylabel('Elapsed time [s]');
 
