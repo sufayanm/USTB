@@ -43,7 +43,7 @@
 
 // Beamforming kernel
 __global__ void beamform(const size_t N_pixels, const size_t N_channels, const size_t N_waves, const float Fs, cuFloatComplex* bf_data, const cudaTextureObject_t tex,
-	const float* tx_delay, const float* rx_delay, const float* tx_apod, const float* rx_apod, const float i0, const float wd)
+	const float* __restrict__ tx_delay, const float* __restrict__ rx_delay, const float* __restrict__ tx_apod, const float* __restrict__ rx_apod, const float i0, const float wd)
 {
 	size_t pixel_idx = blockIdx.x * blockDim.x + threadIdx.x; // pixel idx
 	size_t pixel_stride = blockDim.x * gridDim.x;
@@ -68,29 +68,29 @@ __global__ void beamform(const size_t N_pixels, const size_t N_channels, const s
 	{
 		for (size_t g = 0; g < N_channels; g++)
 		{
-			float rApod = rx_apod[i + g * N_pixels];
+			const float rApod = rx_apod[i + g * N_pixels];
 
             if (rApod > 0.0)
             {
-                float rDelay = rx_delay[i + g * N_pixels];
+                const float rDelay = rx_delay[i + g * N_pixels];
 
                 for (size_t j = 0; j < N_waves; j++)
                 {
-                    float apod = rApod * tApod[threadIdx.x+j*blockDim.x];
+                    const float apod = rApod * tApod[threadIdx.x+j*blockDim.x];
 
                     if (apod > 0.0)
                     {
-                        float delay = rDelay + tDelay[threadIdx.x+j*blockDim.x];
-                        float denay = delay * Fs - i0;
+                        const float delay = rDelay + tDelay[threadIdx.x+j*blockDim.x];
+                        const float denay = fma(delay, Fs, -i0);
 
                         cuFloatComplex phase;
 
                         __sincosf(wd * delay, &phase.y, &phase.x);
 
-                        cuFloatComplex val = tex1DLayered<cuFloatComplex>(tex, denay, g + j * N_channels);
+                        const cuFloatComplex val = tex1DLayered<cuFloatComplex>(tex, denay, g + j * N_channels);
 
-                        bf_data[i].x += (val.x * phase.x - val.y * phase.y) * apod;
-                        bf_data[i].y += (val.x * phase.y + val.y * phase.x) * apod;
+                        bf_data[i].x = fma((val.x * phase.x - val.y * phase.y), apod, bf_data[i].x);
+                        bf_data[i].y = fma((val.x * phase.y + val.y * phase.x), apod, bf_data[i].y);
                     }
                 }
             }

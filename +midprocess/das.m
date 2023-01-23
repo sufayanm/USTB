@@ -164,8 +164,8 @@ classdef das < midprocess
             % precalculating hilbert (if needed)
             tools.check_memory(prod([size(h.channel_data.data) 8]));
             data=single(h.channel_data.data);
-            if ~(abs(w0)>eps)
-                data=single(reshape(hilbert(single(h.channel_data.data(:,:))),size(h.channel_data.data)));
+            if (abs(w0)<eps)
+                data=hilbert(data);
             end
             
             % create beamformed data class
@@ -216,9 +216,9 @@ classdef das < midprocess
                             int32(h.dimension), ...
                             int32(h.gpu_device));
 
-                        %% MEX CUDA
-                    case code.mex_gpu_noTex
-                        aux_data=mex.das_cuda_noTex(data,...
+                    %% MEX CUDA
+                    case code.mex_gpu_tex2d
+                        aux_data=mex.das_cuda_tex2d(data,...
                             sampling_frequency,...
                             initial_time,...
                             tx_apodization,...
