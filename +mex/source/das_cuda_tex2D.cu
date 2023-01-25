@@ -83,17 +83,17 @@ __global__ void beamform(const int N_pixels, const int N_channels, const int N_w
 		{
 			const float rApod = rx_apod[i + g * N_pixels];
 
-            if (rApod > eps)
+            if (rApod > 0.0f)
             {
-                const float rDelay = rx_delay[i + g * N_pixels];
+				const float rDelay = rx_delay[i + g * N_pixels];
 
                 for (int j = 0; j < N_waves; j++)
                 {
-                    float apod = rApod * tApod[threadIdx.x+j*blockDim.x];
+					const float apod = rApod * tApod[threadIdx.x+j*blockDim.x];
 
-                    if (apod > eps)
+                    if (apod > 0.0f)
                     {
-                        const float delay = rDelay + tDelay[threadIdx.x+j*blockDim.x];
+						const float delay = rDelay + tDelay[threadIdx.x+j*blockDim.x];
                         const float denay = fma(delay, Fs, -i0);
 
                         cuFloatComplex phase;
