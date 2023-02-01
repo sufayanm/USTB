@@ -3,7 +3,7 @@
  * CUDA MEX general beamformer for USTB
  *
  * Stefano Fiorentini <stefano.fiorentini@ntnu.no>
- * Last edit 20.12.2022
+ * Last edit 01.02.2023
  *
  *================================================*/
 

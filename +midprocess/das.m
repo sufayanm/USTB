@@ -5,7 +5,7 @@ classdef das < midprocess
     %               Ole Marius Hoel Rindal <olemarius@olemarius.net>
     %               Stefano Fiorentini <stefano.fiorentini@ntnu.no>
     %
-    %   $Last updated: 01.02.2023$
+    %   $Last updated: 01/02/2023$
     
     %% Additional properties
     properties
