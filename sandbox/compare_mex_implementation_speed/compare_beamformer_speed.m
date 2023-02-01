@@ -15,12 +15,14 @@ clc
 
 testCase = 0; % 0 = linear/planewave, 1 = sector/focused
 do_demodulation = true;
-nFrames = 1:100:501;
+nFrames = 1;
+
+codeToBenchmark = [1, 2, 3, 4]; % check enumeration("code") to see which ones
 
 [cid, cnames] = enumeration("code");
 
-cid = cid([2, 3, 4]); % skip normal matlab-based scripts
-cnames = cnames([2, 3, 4]);
+cid = cid(codeToBenchmark); % skip normal matlab-based scripts
+cnames = cnames(codeToBenchmark);
 
 %% Phantom
 switch testCase
@@ -157,7 +159,7 @@ fprintf(1, 'Precalculating apodization\n')
 bmf.go();
 
 % Clear data
-bmf.output = [];
+bmf.beamformed_data = [];
 %% Test beamforming speed
 
 dOp_per_frame = 2*scan.N_pixels*channel_data.N_channels*channel_data.N_waves;
