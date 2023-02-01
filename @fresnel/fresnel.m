@@ -120,12 +120,11 @@ classdef fresnel < handle
                 
                 % Computing the transmit signal
                 transmit_delay = time_1w - (propagation_delay + h.sequence(n_wave).delay_values.');
-                transmit_signal = sum(h.pulse.signal(transmit_delay).*h.sequence(n_wave).apodization_values.'.*attenuation, 2);
+                transmit_signal = sum(h.pulse.signal(transmit_delay).*h.sequence(n_wave).apodization_values.*attenuation, 2);
                 
                 receive_delay = time_2w - propagation_delay + h.sequence(n_wave).delay - time_2w(1);
 
                 % Computing the receive signal
-               
                 for n_point = 1:h.phantom.N_points
                     F.Values = transmit_signal(:,1,n_point);
                     receive_signal(:,:,n_point) = F(receive_delay(:,:,n_point));
