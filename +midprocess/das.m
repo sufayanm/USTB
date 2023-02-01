@@ -186,7 +186,7 @@ classdef das < midprocess
                     case code.mex
                         str = "MEX C";
                     case code.mex_gpu
-                        str = "MEX CUDA";
+                        str = "MEX GPU";
                     case code.matlab
                         str = "MATLAB";
                     case code.matlab_gpu
@@ -250,8 +250,8 @@ classdef das < midprocess
                         error('Unknown code implementation requested');
                 end % end switch          
 
-                elapsed_time = toc()
-                fprintf(1, "Completed in %.2f seconds./n", elapsed_time);
+                elapsed_time = toc();
+                fprintf(1, "Completed in %.2f seconds.\n", elapsed_time);
             end % end if
 
             % assign phase according to 2 times the receive propagation distance

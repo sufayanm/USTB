@@ -19,9 +19,9 @@ clear all
 close all
 clc
 
-testCase = 1; % 0 = linear/planewave, 1 = sector/focused
+testCase = 0; % 0 = linear/planewave, 1 = sector/focused
 do_demodulation = true;
-nFrames = 100;
+nFrames = 1000;
 
 %% Phantom
 switch testCase
@@ -163,7 +163,7 @@ pipe.go({proc});
 
 dOp_per_frame = 2*scan.N_pixels*channel_data.N_channels*channel_data.N_waves;
 
-das_mexFast_time = zeros([length(nFrames), 1]);
+das_mex_time = zeros([length(nFrames), 1]);
 das_mex_gpu_time = zeros([length(nFrames), 1]);
 
 if isscalar(nFrames)
@@ -177,8 +177,8 @@ for n=1:length(nFrames)
 
     % Time USTB's MEX GPU tex 2D implementation
     proc            = midprocess.das();
-    proc.code       = code.mex_gpu_tex2D;
-    proc.gpu_device = 0;
+    proc.code       = code.mex_gpu;
+    proc.gpu_id = 0;
     proc.dimension  = dimension.both;
     fprintf(1, 'Processing %d frames: MEX CUDA tex 2D\n', nFrames(n))
     tic()
@@ -187,12 +187,12 @@ for n=1:length(nFrames)
 
     % Time USTB's MEX FAST implementation
     proc            = midprocess.das();
-    proc.code       = code.mexFast;
+    proc.code       = code.mex;
     proc.dimension  = dimension.both;
     fprintf(1, 'Processing %d frames: MEX FAST\n', nFrames(n))
     tic()
     bf_data_mexFast_cpu = pipe.go({proc});
-    das_mexFast_time(n) = toc();
+    das_mex_time(n) = toc();
 end
 
 if isscalar(nFrames)
@@ -256,14 +256,14 @@ cMap = lines(2);
 
 hold on
 plot(nFrames(1:n)*dOp_per_frame/1e9,das_mex_gpu_time(1:n),'s-','linewidth',1.5,'color',cMap(1,:));
-plot(nFrames(1:n)*dOp_per_frame/1e9,das_mexFast_time(1:n),'o-','linewidth',1.5,'color',cMap(2,:));
+plot(nFrames(1:n)*dOp_per_frame/1e9,das_mex_time(1:n),'o-','linewidth',1.5,'color',cMap(2,:));
 hold off
 
 for nn=1:length(nFrames)
     text(nFrames(nn)*dOp_per_frame/1e9,das_mex_gpu_time(nn),sprintf('%0.2f s', das_mex_gpu_time(nn)), ...
         'horizontalalignment', 'left', 'verticalalignment', 'top','color',cMap(1,:),'fontweight','bold');
 
-    text(nFrames(nn)*dOp_per_frame/1e9,das_mexFast_time(nn),sprintf('%0.2f s', das_mexFast_time(nn)), ...
+    text(nFrames(nn)*dOp_per_frame/1e9,das_mex_time(nn),sprintf('%0.2f s', das_mex_time(nn)), ...
         'horizontalalignment', 'right', 'verticalalignment', 'bottom','color',cMap(2,:),'fontweight','bold');
 end
 
