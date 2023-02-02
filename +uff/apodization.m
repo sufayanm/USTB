@@ -65,51 +65,59 @@ classdef apodization < uff
     
     %% set methods
     methods
-        function h=set.origin(h,in_origin)
-            assert(isa(in_origin,'uff.point'), 'The input origin is not a POINT class. Check HELP POINT');
+        function set.origin(h,in_origin)
+            validateattributes(in_origin, {'uff.point'}, {'vector'})
             h.origin=in_origin;
         end
-        function h=set.probe(h,in_probe)
-            assert(isa(in_probe,'uff.probe'), 'The input probe is not a PROBE class. Check HELP PROBE');
+        function set.probe(h,in_probe)
+            validateattributes(in_probe, {'uff.probe'}, {'scalar'})
             h.probe=in_probe;
         end
-        function h=set.focus(h,in_scan)
-            assert(isa(in_scan,'uff.scan'), 'The input focus is not a SCAN class. Check HELP SCAN');
+        function set.focus(h,in_scan)
+            validateattributes(in_scan, {'uff.scan'}, {'scalar'})
             h.focus=in_scan;
         end
-        function h=set.f_number(h,in_f_number)
-            if(numel(in_f_number)==1) % we allow for escalar input
-                in_f_number=[in_f_number in_f_number];
+        function set.f_number(h,in_f_number)
+            validateattributes(in_f_number, {'single', 'double'}, {'vector', 'finite', 'positive'})
+
+            if(isscalar(in_f_number))
+                h.f_number=[in_f_number, in_f_number];
+            else
+                h.f_number=in_f_number(:).';
             end
-            assert(size(in_f_number,1)==1&&size(in_f_number,2)==2,'The f-number must be a row vector [Fx Fy]');
-            h.f_number=in_f_number;
         end
-        function h=set.tilt(h,in_tilt)
-            if(numel(in_tilt)==1) % we allow for escalar input
-                in_tilt=[in_tilt 0];
+        function set.tilt(h,in_tilt)
+            validateattributes(in_tilt, {'single', 'double'}, {'vector', 'finite', 'positive'})
+
+            if(isscalar(in_tilt))
+                h.tilt=[in_tilt, 0];
+            else
+                h.tilt=in_tilt(:).';
             end
-            assert(size(in_tilt,1)==1,size(in_tilt,1)==2,'The tilt must be a row vector [azimuth elevation]');
-            h.tilt=in_tilt;
         end
-        function h=set.window(h,in_window)
-            assert(isa(in_window,'uff.window'),'The window input should be a WINDOW class. Check help WINDOW');
+        function set.window(h,in_window)
+            validateattributes(in_window, {'uff.window'}, {'scalar'})
             h.window=in_window;
         end
         
-        function h=set.minimum_aperture(h,in_ap)
-            if(numel(in_ap)==1) % we allow for escalar input
-                in_ap=[in_ap in_ap];
+        function set.minimum_aperture(h,in_ap)
+            validateattributes(in_ap, {'single', 'double'}, {'vector', 'finite', 'nonnegative'})
+
+            if(isscalar(in_ap))
+                h.minimum_aperture=[in_ap, in_ap];
+            else
+                h.minimum_aperture=in_ap(:).';
             end
-            assert(size(in_ap,1)==1&&size(in_ap,2)==2,'The minimum aperture should be a row vector [Ax Ay]');
-            h.minimum_aperture=in_ap;
         end
         
-        function h=set.maximum_aperture(h,in_ap)
-            if(numel(in_ap)==1) % we allow for escalar input
-                in_ap=[in_ap in_ap];
+        function set.maximum_aperture(h,in_ap)
+            validateattributes(in_ap, {'single', 'double'}, {'vector', 'finite', 'nonnegative'})
+
+            if(isscalar(in_ap))
+                h.maximum_aperture=[in_ap, in_ap];
+            else
+                h.maximum_aperture=in_ap(:).';
             end
-            assert(size(in_ap,1)==1&&size(in_ap,2)==2,'The maximum aperture should be a row vector [Ax Ay]');
-            h.maximum_aperture=in_ap;
         end
     end
         
@@ -140,16 +148,16 @@ classdef apodization < uff
     
     %% windows
     methods
-        function value=rectangular(h,ratio)
+        function value=rectangular(~,ratio)
             value=double(ratio<=0.5);
         end
-        function value=hanning(h,ratio)
+        function value=hanning(~,ratio)
             value=double(ratio<=0.5).*(0.5 + 0.5*cos(2*pi*ratio));
         end
-        function value=hamming(h,ratio)
+        function value=hamming(~,ratio)
             value=double(ratio<=0.5).*(0.53836 + 0.46164*cos(2*pi*ratio));
         end
-        function value=tukey(h,ratio, roll)
+        function value=tukey(~,ratio, roll)
             value=(ratio<=(1/2*(1-roll))) + (ratio>(1/2*(1-roll))).*(ratio<(1/2)).*0.5.*(1+cos(2*pi/roll*(ratio-roll/2-1/2)));
         end
         
@@ -244,7 +252,7 @@ classdef apodization < uff
                     h.data_backup=kron(ABlock,ones(h.focus.N_z_axis,1));
                     
                 % sector scan
-                elseif isa(h.focus,'uff.sector_scan')||isa(h.focus,'uff.sector_scan_na')
+                elseif isa(h.focus,'uff.sector_scan')
                     assert(N_waves==h.focus.N_azimuth_axis/h.MLA,'The number of waves in the sequence does not match with the number of scanlines and set MLA.');
                     ACell=repmat({ones(h.MLA,1)},[1,h.focus.N_azimuth_axis/h.MLA]);
                     if (h.MLA_overlap>0)                    
@@ -258,7 +266,7 @@ classdef apodization < uff
                 end
             else
                 % incidence angles
-                [tan_theta tan_phi] = incidence_wave(h);
+                [tan_theta, tan_phi] = incidence_wave(h);
                 
                 % ratios
                 ratio_theta = abs(h.f_number(1)*tan_theta);
@@ -309,7 +317,7 @@ classdef apodization < uff
                 
             else
                 % incidence 
-                [tan_theta tan_phi] = incidence_aperture(h);
+                [tan_theta, tan_phi] = incidence_aperture(h);
                 
                 % ratios F*tan(angle)
                 ratio_theta = abs(h.f_number(1)*tan_theta);
@@ -329,7 +337,7 @@ classdef apodization < uff
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% incidence aperture
-        function [tan_theta tan_phi distance] = incidence_aperture(h)
+        function [tan_theta, tan_phi, distance] = incidence_aperture(h)
             % Location of the elements
             x=ones(h.focus.N_pixels,1)*(h.probe.x.');
             y=ones(h.focus.N_pixels,1)*(h.probe.y.');
@@ -342,7 +350,7 @@ classdef apodization < uff
                 elseif isa(h.probe,'uff.curvilinear_matrix_array')
                     h.origin = uff.point('xyz',[0 0 -h.probe.radius_x]);
                 elseif isa(h.focus,'uff.sector_scan')
-                    h.origin = h.focus.apex;
+                    h.origin = h.focus.origin;
                 end
             end
             
@@ -370,7 +378,7 @@ classdef apodization < uff
             elseif isa(h.focus,'uff.sector_scan')
                 pixel_distance = sqrt((h.focus.x-h.origin.x).^2+(h.focus.z-h.origin.z).^2);
                 
-                x_dist=x - h.origin.x;
+                x_dist=x-h.origin.x;
                 y_dist=h.origin.y-y;
                 z_dist=pixel_distance*ones(1,h.N_elements);
                     
@@ -408,7 +416,7 @@ classdef apodization < uff
 
         %%%%%%%%%%%%%%%%%%%%%%%%%
         %% incidence wave
-        function [tan_theta tan_phi distance] = incidence_wave(h)
+        function [tan_theta, tan_phi, distance] = incidence_wave(h)
             
             assert(numel(h.sequence)>0,'The SEQUENCE is not set.');
             tan_theta=zeros(h.focus.N_pixels,length(h.sequence));
@@ -457,8 +465,9 @@ classdef apodization < uff
                         tan_theta(:,n) = x_dist./z_dist;
                         tan_phi(:,n) = y_dist./z_dist;
                         distance(:,n) = z_dist;
-
-                    elseif isa(h.focus,'uff.sector_scan')
+                    
+                    %% This won't work if more than one origin is present
+                    elseif isa(h.focus,'uff.sector_scan') 
                         
                         % distance to source
                         x_dist=h.focus.x-h.sequence(n).source.x;
@@ -466,7 +475,7 @@ classdef apodization < uff
                         z_dist=h.focus.z-h.sequence(n).source.z;
 
                         % source angle respect apex
-                        z_source_apex=h.sequence(n).source.z-h.focus.apex.z;
+                        z_source_apex=h.sequence(n).source.z-h.focus.origin.z;
                         if abs(z_source_apex)>0
                             source_theta=atan2(h.sequence(n).source.x-h.focus.apex.x, z_source_apex);
                             source_phi=atan2(h.sequence(n).source.y-h.focus.apex.y, z_source_apex);

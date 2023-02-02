@@ -16,9 +16,9 @@ classdef sector_scan < uff.scan
     %
     %   See also UFF.SCAN, UFF.LINEAR_SCAN
 
-    %   authors:    Alfonso Rodriguez-Molares (alfonso.r.molares@ntnu.no)
-    %               Anders E. Vrålstad (anders.e.vralstad@ntnu.no)
-    %               Stefano Fiorentini (stefano.fiorentini@ntnu.no)
+    %   authors:    Alfonso Rodriguez-Molares <alfonso.r.molares@ntnu.no>
+    %               Anders E. Vrålstad <anders.e.vralstad@ntnu.no>
+    %               Stefano Fiorentini <stefano.fiorentini@ntnu.no>
     %   $Date: 2022/12/20$
 
     properties  (Access = public)
@@ -36,6 +36,7 @@ classdef sector_scan < uff.scan
     end
     
     properties (Access = private)
+        theta                     % Azimuth coordinates [rad]
         rho                       % Depth coordinates [m]
     end
     
