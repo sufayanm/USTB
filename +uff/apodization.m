@@ -218,9 +218,7 @@ classdef apodization < uff
             
         end
         
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        %% compute wave apodization
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% Wave apodization
         function compute_wave_apodization(h)
             assert(numel(h.sequence)>0,'uff.apodization:Scanline','The SEQUENCE parameter must be set to use uff.window.scanline apodization.');
             N_waves=numel(h.sequence);
@@ -284,9 +282,7 @@ classdef apodization < uff
             h.save_hash();
         end
         
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        %% aperture apodization
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% Aperture apodization
         function compute_aperture_apodization(h)
             assert(numel(h.probe)>0,'The PROBE parameter must be set to compute aperture apodization.');
             
@@ -335,73 +331,71 @@ classdef apodization < uff
             h.save_hash();
         end
         
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%
-        %% incidence aperture
+        %% Incidence aperture
         function [tan_theta, tan_phi, distance] = incidence_aperture(h)
 
-            %% NEED TO LOOK INTO SECTOR SCAN APODIZATION
-
             % Location of the elements
-            x=ones(h.focus.N_pixels,1)*(h.probe.x.');
-            y=ones(h.focus.N_pixels,1)*(h.probe.y.');
-            z=ones(h.focus.N_pixels,1)*(h.probe.z.');
+            x = ones([h.focus.N_pixels,1]) .* h.probe.x.';
+            y = ones([h.focus.N_pixels,1]) .* h.probe.y.';
+            z = ones([h.focus.N_pixels,1]) .* h.probe.z.';
             
             % if the apodization center has not been set by the user
             if isempty(h.origin)
                 if isa(h.probe,'uff.curvilinear_array')
-                    h.origin = uff.point('xyz',[0 0 -h.probe.radius]);
+                    h.origin = uff.point('xyz', [0, 0, -h.probe.radius]);
                 elseif isa(h.probe,'uff.curvilinear_matrix_array')
-                    h.origin = uff.point('xyz',[0 0 -h.probe.radius_x]);
+                    h.origin = uff.point('xyz', [0, 0, -h.probe.radius_x]);
                 elseif isa(h.focus,'uff.sector_scan')
                     h.origin = h.focus.origin;
                 end
             end
-            
-            % if we have a curvilinear array
-            if isa(h.probe,'uff.curvilinear_array')
-                element_azimuth = atan2(x-h.origin.x, z-h.origin.z);
-                
-                pixel_azimuth = atan2(h.focus.x-h.origin.x, h.focus.z-h.origin.z);
-                pixel_distance = sqrt((h.focus.x-h.origin.x).^2+(h.focus.z-h.origin.z).^2);
-                
-                x_dist=h.probe.radius*bsxfun(@minus,pixel_azimuth, element_azimuth);
-                y_dist=h.origin.y-y;
-                z_dist=pixel_distance*ones(1,h.N_elements)-h.probe.radius;
-            elseif isa(h.probe,'uff.curvilinear_matrix_array')
-                element_azimuth = atan2(x-h.origin.x, z-h.origin.z);
-                
-                pixel_azimuth = atan2(h.focus.x-h.origin.x, h.focus.z-h.origin.z);
-                pixel_distance = sqrt((h.focus.x-h.origin.x).^2+(h.focus.z-h.origin.z).^2);
-                
-                x_dist=h.probe.radius_x*bsxfun(@minus,pixel_azimuth, element_azimuth);
-                y_dist=h.origin.y-y;
-                z_dist=pixel_distance*ones(1,h.N_elements)-h.probe.radius_x;
 
-            % if we have a sector scan
-            elseif isa(h.focus,'uff.sector_scan')
+            % if we have a curvilinear array
+            if isa(h.probe,'uff.curvilinear_array') || isa(h.probe,'uff.curvilinear_matrix_array')
+                element_azimuth = atan2(x-h.origin.x, z-h.origin.z);
+                
+                pixel_azimuth = atan2(h.focus.x-h.origin.x, h.focus.z-h.origin.z);
                 pixel_distance = sqrt((h.focus.x-h.origin.x).^2+(h.focus.z-h.origin.z).^2);
                 
-                x_dist=x-h.origin.x;
-                y_dist=h.origin.y-y;
-                z_dist=pixel_distance*ones(1,h.N_elements);
+                x_dist = h.probe.radius .* (pixel_azimuth-element_azimuth);
+                y_dist = h.origin.y - y;
+                z_dist = pixel_distance .* ones(1,h.N_elements)-h.probe.radius;
+
+            % If we have a sector scan, the apodization is centered at the
+            % origin of the field of view
+            elseif isa(h.focus,'uff.sector_scan')
+                if(isscalar(h.origin))
+                    x0 = h.origin.x;
+                    y0 = h.origin.y;
+                    z0 = h.origin.z;
+                else
+                    x0 = ones([h.focus.N_depth_axis,1]) .* [h.origin.x];
+                    y0 = ones([h.focus.N_depth_axis,1]) .* [h.origin.y];
+                    z0 = ones([h.focus.N_depth_axis,1]) .* [h.origin.z];
+                end
+
+                pixel_distance = sqrt((h.focus.x-x0).^2+(h.focus.y-y0).^2+(h.focus.z-z0).^2);
+                
+                x_dist=  x-x0;
+                y_dist = y-y0;
+                z_dist = pixel_distance .* ones([1, h.N_elements]);
                     
-            % if not, then we have a flat probe and a linear scan. We set the aperture center right on top
+            % If not, then we have a flat probe and a linear scan. In this
+            % case the aperture is centered at each beam's x coordinate
             else
                 if isempty(h.origin)
-                    x_dist=h.focus.x*ones(1,h.probe.N_elements)-x;
-                    y_dist=h.focus.y*ones(1,h.probe.N_elements)-y;
-                    z_dist=h.focus.z*ones(1,h.probe.N_elements)-z;
+                    x_dist = h.focus.x - x;
+                    y_dist = h.focus.y - y;
+                    z_dist=  h.focus.z .* ones(1,h.probe.N_elements) - z;
                 else
-                    x_dist=h.origin.x-x;
-                    y_dist=h.origin.y-y;
-                    z_dist=h.origin.z-z;                    
+                    x_dist = h.origin.x - x;
+                    y_dist = h.origin.y - y;
+                    z_dist = h.origin.z - z;                    
                 end
             end
 
-            % apply tilt
-            if any(abs(h.tilt)>0)
-                [x_dist, y_dist, z_dist] = tools.rotate_points(x_dist, y_dist, z_dist, h.tilt(1), h.tilt(2));
-            end
+            % Apply tilt
+            [x_dist, y_dist, z_dist] = tools.rotate_points(x_dist, y_dist, z_dist, h.tilt(1), h.tilt(2));
             
             % minimum aperture
             z_dist(z_dist>=0 & z_dist<h.minimum_aperture(1)/h.f_number(1)) = h.minimum_aperture(1)/h.f_number(1);
@@ -417,8 +411,8 @@ classdef apodization < uff
             distance = z_dist;
         end
 
-        %%%%%%%%%%%%%%%%%%%%%%%%%
-        %% incidence wave
+      
+        %% Incidence wave
         function [tan_theta, tan_phi, distance] = incidence_wave(h)
 
             assert(numel(h.sequence)>0,'The SEQUENCE is not set.');
@@ -436,7 +430,6 @@ classdef apodization < uff
 
                 % Diverging Wave or Converging Wave case
                 else
-
 
                     % Calculate distances
                     x_dist=h.focus.x-h.sequence(n).source.x;
