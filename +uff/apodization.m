@@ -345,7 +345,7 @@ classdef apodization < uff
                     h.origin = uff.point('xyz', [0, 0, -h.probe.radius]);
                 elseif isa(h.probe,'uff.curvilinear_matrix_array')
                     h.origin = uff.point('xyz', [0, 0, -h.probe.radius_x]);
-                elseif isa(h.focus,'uff.sector_scan')
+                elseif isa(h.focus, 'uff.sector_scan')
                     h.origin = h.focus.origin;
                 end
             end
@@ -374,10 +374,10 @@ classdef apodization < uff
                     z0 = ones([h.focus.N_depth_axis,1]) .* [h.origin.z];
                 end
 
-                pixel_distance = sqrt((h.focus.x-x0).^2+(h.focus.y-y0).^2+(h.focus.z-z0).^2);
+                pixel_distance = sqrt((h.focus.x-x0(:)).^2+(h.focus.y-y0(:)).^2+(h.focus.z-z0(:)).^2);
                 
-                x_dist=  x-x0;
-                y_dist = y-y0;
+                x_dist=  x-x0(:);
+                y_dist = y-y0(:);
                 z_dist = pixel_distance .* ones([1, h.N_elements]);
                     
             % If not, then we have a flat probe and a linear scan. In this

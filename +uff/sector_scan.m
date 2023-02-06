@@ -91,7 +91,7 @@ classdef sector_scan < uff.scan
             h.update_pixel_position();
         end
         function set.origin(h,in_origin)
-            validateattributes(in_depth_axis, {'uff.point'}, {'vector'})
+            validateattributes(in_origin, {'uff.point'}, {'vector'})
             h.origin=in_origin(:);
             h.update_pixel_position();
         end
