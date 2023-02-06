@@ -420,114 +420,44 @@ classdef apodization < uff
         %%%%%%%%%%%%%%%%%%%%%%%%%
         %% incidence wave
         function [tan_theta, tan_phi, distance] = incidence_wave(h)
-            
+
             assert(numel(h.sequence)>0,'The SEQUENCE is not set.');
-            tan_theta=zeros(h.focus.N_pixels,length(h.sequence));
-            tan_phi=zeros(h.focus.N_pixels,length(h.sequence));
-            distance=zeros(h.focus.N_pixels,length(h.sequence));
-            
+            tan_theta=zeros([h.focus.N_pixels,length(h.sequence)]);
+            tan_phi=zeros([h.focus.N_pixels,length(h.sequence)]);
+            distance=zeros([h.focus.N_pixels,length(h.sequence)]);
+
             for n=1:length(h.sequence)
-                % plane wave
+                % Plane Wave case
                 if (h.sequence(n).wavefront==uff.wavefront.plane||isinf(h.sequence(n).source.distance))
-                    
+
                     tan_theta(:,n)=ones(h.focus.N_pixels,1)*tan(h.sequence(n).source.azimuth - h.tilt(1));
                     tan_phi(:,n)=ones(h.focus.N_pixels,1)*tan(h.sequence(n).source.elevation - h.tilt(2));
                     distance(:,n) = h.focus.z;
-                    
-                % diverging or converging waves
+
+                % Diverging Wave or Converging Wave case
                 else
-                    % distances
-                    if logical(h.sequence(n).origin.distance)
 
-                        %% PROBABLY NEED TO MERGE THIS WITH THE FOLLOWING TWO. IF THIS ACTIVATES ON A SECTOR SCAN WITH NON-ZERO APEX, THEN WE MAY HAVE PROBLEMS
 
-                        % distance to source
-                        x_dist=h.focus.x-h.sequence(n).source.x;
-                        y_dist=h.focus.y-h.sequence(n).source.y;
-                        z_dist=h.focus.z-h.sequence(n).source.z;
+                    % Calculate distances
+                    x_dist=h.focus.x-h.sequence(n).source.x+h.sequence(n).origin.x;
+                    y_dist=h.focus.y-h.sequence(n).source.y+h.sequence(n).origin.y;
+                    z_dist=h.focus.z-h.sequence(n).source.z+h.sequence(n).origin.z;
 
-                        % source angle respect origin
-                        z_source_origin=h.sequence(n).source.z-h.sequence(n).origin.z;
-                        if abs(z_source_origin)>0
-                            source_theta=atan2(h.sequence(n).source.x-h.sequence(n).origin.x, z_source_origin);
-                            source_phi=atan2(h.sequence(n).source.y-h.sequence(n).origin.y, z_source_origin);
-                        else
-                            source_theta=0; source_phi=0;
-                        end
-                        
-                        % apply beam & tilt
-                        [x_dist, y_dist, z_dist] = tools.rotate_points(x_dist, y_dist, z_dist, h.tilt(1) + source_theta, h.tilt(2) + source_phi);
-                        
-                        % minimum aperture
-                        z_dist(z_dist>=0 & z_dist<h.minimum_aperture(1)/h.f_number(1)) = h.minimum_aperture(1)/h.f_number(1);
-                        z_dist(z_dist<0 & z_dist>-h.minimum_aperture(1)/h.f_number(1)) = -h.minimum_aperture(1)/h.f_number(1);
+                    % apply beam & tilt
+                    [x_dist, y_dist, z_dist] = tools.rotate_points(x_dist, y_dist, z_dist, h.tilt(1), h.tilt(2));
 
-                        % maximum aperture
-                        z_dist(z_dist>=0 & z_dist>h.maximum_aperture(1)/h.f_number(1)) = h.maximum_aperture(1)/h.f_number(1);
-                        z_dist(z_dist<0 & z_dist<-h.maximum_aperture(1)/h.f_number(1)) = -h.maximum_aperture(1)/h.f_number(1);
-                        
-                        % compute tangents & distance
-                        tan_theta(:,n) = x_dist./z_dist;
-                        tan_phi(:,n) = y_dist./z_dist;
-                        distance(:,n) = z_dist;
-                    
-                    %% This won't work if more than one origin is present
-                    elseif isa(h.focus,'uff.sector_scan') 
-                        
-                        % distance to source
-                        x_dist=h.focus.x-h.sequence(n).source.x;
-                        y_dist=h.focus.y-h.sequence(n).source.y;
-                        z_dist=h.focus.z-h.sequence(n).source.z;
+                    % minimum aperture
+                    z_dist(z_dist>=0 & z_dist<h.minimum_aperture(1)/h.f_number(1)) = h.minimum_aperture(1)/h.f_number(1);
+                    z_dist(z_dist<0 & z_dist>-h.minimum_aperture(1)/h.f_number(1)) = -h.minimum_aperture(1)/h.f_number(1);
 
-                        % source angle respect apex
-                        z_source_apex=h.sequence(n).source.z-h.focus.origin.z;
-                        if abs(z_source_apex)>0
-                            source_theta=atan2(h.sequence(n).source.x-h.focus.apex.x, z_source_apex);
-                            source_phi=atan2(h.sequence(n).source.y-h.focus.apex.y, z_source_apex);
-                        else
-                            source_theta=0; source_phi=0;
-                        end
-                        
-                        % apply beam & tilt
-                        [x_dist, y_dist, z_dist] = tools.rotate_points(x_dist, y_dist, z_dist, h.tilt(1) + source_theta, h.tilt(2) + source_phi);
-                        
-                        % minimum aperture
-                        z_dist(z_dist>=0 & z_dist<h.minimum_aperture(1)/h.f_number(1)) = h.minimum_aperture(1)/h.f_number(1);
-                        z_dist(z_dist<0 & z_dist>-h.minimum_aperture(1)/h.f_number(1)) = -h.minimum_aperture(1)/h.f_number(1);
+                    % maximum aperture
+                    z_dist(z_dist>=0 & z_dist>h.maximum_aperture(1)/h.f_number(1)) = h.maximum_aperture(1)/h.f_number(1);
+                    z_dist(z_dist<0 & z_dist<-h.maximum_aperture(1)/h.f_number(1)) = -h.maximum_aperture(1)/h.f_number(1);
 
-                        % maximum aperture
-                        z_dist(z_dist>=0 & z_dist>h.maximum_aperture(1)/h.f_number(1)) = h.maximum_aperture(1)/h.f_number(1);
-                        z_dist(z_dist<0 & z_dist<-h.maximum_aperture(1)/h.f_number(1)) = -h.maximum_aperture(1)/h.f_number(1);
-                        
-                        % compute tangents & distance
-                        tan_theta(:,n) = x_dist./z_dist;
-                        tan_phi(:,n) = y_dist./z_dist;
-                        distance(:,n) = z_dist;
-                        
-                    else
-                        % distance to source
-                        x_dist=h.focus.x-h.sequence(n).source.x;
-                        y_dist=h.focus.y-h.sequence(n).source.y;
-                        z_dist=h.focus.z-h.sequence(n).source.z;
-
-                        % apply tilt
-                        if any(abs(h.tilt)>0)
-                            [x_dist, y_dist, z_dist] = tools.rotate_points(x_dist, y_dist, z_dist, h.tilt(1), h.tilt(2));
-                        end
-                        
-                        % minimum aperture
-                        z_dist(z_dist>=0 & z_dist<h.minimum_aperture(1)/h.f_number(1)) = h.minimum_aperture(1)/h.f_number(1);
-                        z_dist(z_dist<0 & z_dist>-h.minimum_aperture(1)/h.f_number(1)) = -h.minimum_aperture(1)/h.f_number(1);
-
-                        % maximum aperture
-                        z_dist(z_dist>=0 & z_dist>h.maximum_aperture(1)/h.f_number(1)) = h.maximum_aperture(1)/h.f_number(1);
-                        z_dist(z_dist<0 & z_dist<-h.maximum_aperture(1)/h.f_number(1)) = -h.maximum_aperture(1)/h.f_number(1);
-                        
-                        % compute tangents & distance
-                        tan_theta(:,n) = x_dist./z_dist;
-                        tan_phi(:,n) = y_dist./z_dist;
-                        distance(:,n) = z_dist;
-                    end
+                    % compute tangents & distance
+                    tan_theta(:,n) = x_dist./z_dist;
+                    tan_phi(:,n) = y_dist./z_dist;
+                    distance(:,n) = z_dist;
                 end
             end
         end

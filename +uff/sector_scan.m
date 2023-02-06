@@ -63,35 +63,36 @@ classdef sector_scan < uff.scan
             N_pixels = numel(rho);
             
             % Define origin struct
-            origin.x = [h.origin.x];
-            origin.y = [h.origin.y];
-            origin.z = [h.origin.z];
+            x0 = [h.origin.x];
+            y0 = [h.origin.y];
+            z0 = [h.origin.z];
             
             % Storing in case the reference distance is needed
             h.rho = rho(:);
+            h.theta = theta(:);
             
             % position of the pixels
-            h.x=reshape(rho.*sin(theta)+origin.x, [N_pixels, 1]);
-            h.y=reshape(zeros(size(rho)), [N_pixels, 1]);
-            h.z=reshape(rho.*cos(theta)+origin.z, [N_pixels, 1]);
+            h.x=reshape(rho.*sin(theta)+x0, [N_pixels, 1]);
+            h.y=reshape(zeros(size(rho))+y0, [N_pixels, 1]);
+            h.z=reshape(rho.*cos(theta)+z0, [N_pixels, 1]);
         end
     end
     
     %% Set methods
     methods
         function set.azimuth_axis(h,in_azimuth_axis)
-            assert(isvector(in_azimuth_axis)&&isfloat(in_azimuth_axis), 'The input must be a floating point vector.')
+            validateattributes(in_azimuth_axis, {'single', 'double'}, {'vector'})
             h.azimuth_axis=in_azimuth_axis(:);
             h.update_pixel_position();
         end
         function set.depth_axis(h,in_depth_axis)
-            assert(isvector(in_depth_axis)&&isfloat(in_depth_axis), 'The input must be a floating point vector.')
-            h.depth_axis=in_depth_axis;
+            validateattributes(in_depth_axis, {'single', 'double'}, {'vector'})
+            h.depth_axis=in_depth_axis(:);
             h.update_pixel_position();
         end
         function set.origin(h,in_origin)
-            assert(isa(in_origin,'uff.point')&&isvector(in_origin), 'The input must be a vector of UFF.POINT objects.');
-            h.origin=in_origin;
+            validateattributes(in_depth_axis, {'uff.point'}, {'vector'})
+            h.origin=in_origin(:);
             h.update_pixel_position();
         end
     end
