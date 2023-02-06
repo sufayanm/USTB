@@ -339,7 +339,7 @@ classdef apodization < uff
             y = ones([h.focus.N_pixels,1]) .* h.probe.y.';
             z = ones([h.focus.N_pixels,1]) .* h.probe.z.';
             
-            % if the apodization center has not been set by the user
+            % If the apodization center has not been set by the user
             if isempty(h.origin)
                 if isa(h.probe,'uff.curvilinear_array')
                     h.origin = uff.point('xyz', [0, 0, -h.probe.radius]);
@@ -350,7 +350,7 @@ classdef apodization < uff
                 end
             end
 
-            % if we have a curvilinear array
+            % If we have a curvilinear array
             if isa(h.probe,'uff.curvilinear_array') || isa(h.probe,'uff.curvilinear_matrix_array')
                 element_azimuth = atan2(x-h.origin.x, z-h.origin.z);
                 
@@ -376,8 +376,8 @@ classdef apodization < uff
 
                 pixel_distance = sqrt((h.focus.x-x0(:)).^2+(h.focus.y-y0(:)).^2+(h.focus.z-z0(:)).^2);
                 
-                x_dist=  x-x0(:);
-                y_dist = y-y0(:);
+                x_dist=  x - x0(:);
+                y_dist = y - y0(:);
                 z_dist = pixel_distance .* ones([1, h.N_elements]);
                     
             % If not, then we have a flat probe and a linear scan. In this
@@ -386,7 +386,7 @@ classdef apodization < uff
                 if isempty(h.origin)
                     x_dist = h.focus.x - x;
                     y_dist = h.focus.y - y;
-                    z_dist=  h.focus.z .* ones(1,h.probe.N_elements) - z;
+                    z_dist = h.focus.z - z;
                 else
                     x_dist = h.origin.x - x;
                     y_dist = h.origin.y - y;
