@@ -453,18 +453,25 @@ classdef apodization < uff
 
                     % Apply beam & tilt
                     [x_dist, y_dist, z_dist] = tools.rotate_points(x_dist, y_dist, z_dist, h.tilt(1)+s0theta, h.tilt(2)+s0phi);
+                    zx_dist = z_dist;
+                    zy_dist = z_dist;
 
-                    % minimum aperture
-                    z_dist(z_dist>=0 & z_dist<h.minimum_aperture(1)/h.f_number(1)) = h.minimum_aperture(1)/h.f_number(1);
-                    z_dist(z_dist<0 & z_dist>-h.minimum_aperture(1)/h.f_number(1)) = -h.minimum_aperture(1)/h.f_number(1);
+                    % Apply minimum aperture
+                    zx_dist(abs(z_dist)<=h.minimum_aperture(1)/h.f_number(1)) = ...
+                        sign(z_dist(abs(z_dist)<=h.minimum_aperture(1)/h.f_number(1)))*h.minimum_aperture(1)/h.f_number(1);
+                    zy_dist(abs(z_dist)<=h.minimum_aperture(2)/h.f_number(2)) = ...
+                        sign(z_dist(abs(z_dist)<=h.minimum_aperture(2)/h.f_number(2)))*h.minimum_aperture(2)/h.f_number(2);
 
-                    % maximum aperture
-                    z_dist(z_dist>=0 & z_dist>h.maximum_aperture(1)/h.f_number(1)) = h.maximum_aperture(1)/h.f_number(1);
-                    z_dist(z_dist<0 & z_dist<-h.maximum_aperture(1)/h.f_number(1)) = -h.maximum_aperture(1)/h.f_number(1);
+                    % Apply maximum aperture
+                    zx_dist(abs(z_dist)>=h.maximum_aperture(1)/h.f_number(1)) = ...
+                        sign(z_dist(abs(z_dist)>=h.maximum_aperture(1)/h.f_number(1)))*h.maximum_aperture(1)/h.f_number(1);
+                    zy_dist(abs(z_dist)>=h.maximum_aperture(2)/h.f_number(2)) = ...
+                        sign(z_dist(abs(z_dist)>=h.maximum_aperture(2)/h.f_number(2)))*h.maximum_aperture(2)/h.f_number(2);
+
 
                     % compute tangents & distance
-                    tan_theta(:,n) = x_dist./z_dist;
-                    tan_phi(:,n) = y_dist./z_dist;
+                    tan_theta(:,n) = x_dist./zx_dist;
+                    tan_phi(:,n) = y_dist./zy_dist;
                     distance(:,n) = z_dist;
                 end
             end
