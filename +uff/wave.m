@@ -47,10 +47,10 @@ classdef wave < uff
     
     %% compulsory properties
     properties  (Access = public)
-        wavefront = uff.wavefront.spherical % WAVEFRONT enumeration class
-        source = uff.point();               % POINT class
-        origin = uff.point()                % POINT class
-        apodization                         % APODIZATION class
+        wavefront                       % WAVEFRONT enumeration class
+        source                          % POINT class
+        origin                          % POINT class
+        apodization                     % APODIZATION class
     end
     
     %% optional properties
@@ -72,7 +72,23 @@ classdef wave < uff
     %% constructor -> uff constructor
     methods (Access = public)
         function h=wave(varargin)
-            h = h@uff(varargin{:});
+            h = h@uff(varargin{:});  
+
+            if isempty(h.wavefront)
+                h.wavefront = uff.wavefront.plane;
+            end
+            
+            if isempty(h.source)
+                h.source = uff.point();
+            end
+
+            if isempty(h.origin)
+                h.origin = uff.point();
+            end
+
+            if isempty(h.apodization)
+                h.apodization = uff.apodization();
+            end
         end
     end
     
@@ -122,26 +138,25 @@ classdef wave < uff
     
     %% set methods
     methods
-        function h=set.apodization(h,in_apodization)
-            assert(isa(in_apodization,'uff.apodization'), 'The apodization is not an APODIZATION class. Check HELP APODIZATOR');
+        function set.apodization(h,in_apodization)
+            validateattributes(in_apodization, {'uff.apodization'}, {'scalar'})
             h.apodization=in_apodization;
         end
-        function h=set.source(h,in_source)
-            assert(isa(in_source,'uff.point'), 'The source is not a POINT class. Check HELP POINT');
+        function set.source(h,in_source)
+            validateattributes(in_source, {'uff.point'}, {'scalar'})
             h.source=in_source;
         end
-        function h=set.origin(h,in_origin)
-            assert(isa(in_origin,'uff.point'), 'The origin is not a POINT class. Check HELP POINT');
+        function set.origin(h,in_origin)
+            validateattributes(in_origin, {'uff.point'}, {'scalar'})
             h.origin=in_origin;
         end
-        function h=set.probe(h,in_probe)
-            assert(isa(in_probe,'uff.probe'), 'The probe is not a PROBE class. Check HELP PROBE');
+        function set.probe(h,in_probe)
+            validateattributes(in_probe, {'uff.probe'}, {'scalar'})
             h.probe=in_probe;
         end
-        function h=set.wavefront(h,in_wavefront)
-            assert(isa(in_wavefront,'uff.wavefront'), 'The probe is not a WAVEFRONT class. Check HELP WAVEFRONT');
+        function set.wavefront(h,in_wavefront)
+            validateattributes(in_wavefront, {'uff.wavefront'}, {'scalar'})
             h.wavefront=in_wavefront;
-            if (h.wavefront == uff.wavefront.plane) h.source.distance = Inf; end
         end
     end
     
