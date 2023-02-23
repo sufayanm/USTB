@@ -72,6 +72,11 @@ for n=1:N
     seq(n).source.xyz=[sin(angle(n))*(prb.radius+focus), 0, cos(angle(n))*(prb.radius+focus)-prb.radius];
     seq(n).origin.xyz=[sin(angle(n))*prb.radius, 0, (cos(angle(n))-1)*prb.radius];
     seq(n).sound_speed=pha.sound_speed;
+
+    seq(n).apodization=uff.apodization();
+    seq(n).apodization.window=uff.window.rectangular;
+    seq(n).apodization.f_number=5;
+    seq(n).apodization.focus=uff.sector_scan('xyz',seq(n).source.xyz);
     
     % show source
     fig_handle=seq(n).source.plot(fig_handle);
