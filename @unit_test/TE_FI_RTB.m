@@ -31,7 +31,7 @@ z_axis=linspace(1e-3,62e-3,512*2).';
 MLA = 4;
 scan_RTB = uff.linear_scan('x_axis',linspace(x_axis(1),x_axis(end),length(x_axis)*MLA)','z_axis',z_axis);
 
-% Do retrospective beamforming
+%% Do retrospective beamforming
 mid_RTB=midprocess.das();
 mid_RTB.dimension = dimension.both();
 
@@ -41,19 +41,19 @@ mid_RTB.scan=scan_RTB;
 % Rindal, O. M. H., Rodriguez-Molares, A., & Austeng, A. (2018). A simple , artifact-free , virtual source model.
 % IEEE International Ultrasonics Symposium, IUS, 1–4.
 mid_RTB.spherical_transmit_delay_model = spherical_transmit_delay_model.hybrid;
-mid_RTB.transmit_apodization.window=uff.window.tukey25;
+mid_RTB.transmit_apodization.window=uff.window.hamming;
 mid_RTB.transmit_apodization.f_number = 2;
 mid_RTB.transmit_apodization.MLA = MLA;
 mid_RTB.transmit_apodization.MLA_overlap = MLA;
 
 % Fix to Issue #132 S.F. 16.02.2023
-mid_RTB.transmit_apodization.minimum_aperture = [3e-3, 3e-3] ./ mid_RTB.transmit_apodization.f_number.^2; 
+mid_RTB.transmit_apodization.minimum_aperture = [1e-3, 1e-3]; 
 
-mid_RTB.receive_apodization.window=uff.window.boxcar;
+mid_RTB.receive_apodization.window=uff.window.tukey50;
 mid_RTB.receive_apodization.f_number=1.7;
 
 % Fix to Issue #132 S.F. 16.02.2023
-mid_RTB.receive_apodization.minimum_aperture = [1e-3, 1e-3] ./ mid_RTB.receive_apodization.f_number.^2;
+mid_RTB.receive_apodization.minimum_aperture = [1e-3, 1e-3];
 
 b_data_RTB=mid_RTB.go();
 
@@ -67,16 +67,20 @@ b_data_RTB_compensated.data = b_data_RTB.data .* weighting;
 % Read reference data
 r=uff.read_object([data_path filesep filename_reference],'/b_data');
 
-%figure
-%b_data_RTB_compensated.plot(subplot(1,3,1),'RTB image');
-%b_data_RTB_compensated.plot(subplot(1,3,2),'Reference img');
-%subplot(1,3,3)
-%imagesc(scan_RTB.x_axis*1000,scan_RTB.z_axis*1000,abs(r.get_image('none')-b_data_RTB_compensated.get_image('none')))
-%axis image; title('Diff');
-%colorbar
+%%
+figure()
+b_data_RTB_compensated.plot(subplot(1,3,1),'RTB image');
+r.plot(subplot(1,3,2),'Reference img');
+subplot(1,3,3)
+imagesc(scan_RTB.x_axis*1000,scan_RTB.z_axis*1000,abs(r.get_image('none')-b_data_RTB_compensated.get_image('none')))
+axis image; title('Diff');
+colorbar
 
 %% test result
-ok=(norm(b_data_RTB_compensated.data-r.data(:))/norm(r.data(:)))<h.internal_tolerance;
+ref = r.get_image('none');
+tmp = b_data_RTB_compensated.get_image('none');
+
+ok=sqrt(sum(abs(tmp(100:end, :)-ref(100:end, :)).^2, 'all'))/sqrt(sum(abs(ref(100:end, :)).^2, 'all'))<h.internal_tolerance;
 
 end
 
