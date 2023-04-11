@@ -59,6 +59,7 @@ classdef wave < uff
         event              % index of the transmit/receive event this wave refers to
         delay = 0          % time interval between t0 and acquistion start
         sound_speed = 1540 % reference speed of sound
+        apodization_values % apodization [unitless]
     end
     
     
