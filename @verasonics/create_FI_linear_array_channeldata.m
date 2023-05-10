@@ -56,7 +56,8 @@ for n_frame = h.frame_order
         % read data
         data(:,:,n_tx,frame_idx) = h.RcvData{1}(h.Receive(n).startSample:h.Receive(n).endSample,h.Trans.Connector,n_frame);
         %save transmit apodization used
-        channel_data.sequence(n_tx).apodization_values = h.TX(n_tx).Apod;
+        channel_data.sequence(n_tx).apodization.apodization_vector = h.TX(n_tx).Apod;
+
 
         if plot_delayed_signal
             if n_tx == length(channel_data.sequence)/2 %if this is the center scan line
