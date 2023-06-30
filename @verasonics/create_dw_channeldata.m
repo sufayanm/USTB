@@ -19,7 +19,7 @@ for n=1:N
     seq(n).source.xyz = source;
     seq(n).sound_speed=channel_data.sound_speed;
     seq(n).apodization.apodization_vector = h.TX(n).Apod;
-    seq(n).origin.xyz = mean(channel_data.probe.geometry(h.TX(n).Apod,1:3),1);
+    seq(n).origin.x = seq(n).source.x;
 end
 channel_data.sequence = seq;
 
