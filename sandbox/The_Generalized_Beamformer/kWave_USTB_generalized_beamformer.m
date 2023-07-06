@@ -10,6 +10,16 @@
 clear all;
 close all;
 
+transmit_waveform = 'FI'; %PW, FI, STAI
+
+if strcmp(transmit_waveform, 'DW')
+    virtual_source_distance = -5/1000;
+elseif strcmp(transmit_waveform, 'PW')
+    virtual_source_distance = inf;
+elseif strcmp(transmit_waveform, 'FI')
+    virtual_source_distance = 40/1000;
+end
+
 %% Basic definitions
 %
 % We define some constants to be used on the script
@@ -18,7 +28,7 @@ f0 = 2e6;       % pulse center frequency [Hz]
 cycles=2;       % number of cycles in pulse
 c = 1540;      % medium speed of sound [m/s]
 rho_m = 1020;    % medium density [kg/m3]
-N_tx=1;            % number of waves in sequence
+N_tx=3;            % number of waves in sequence
 focus_pnt_r = 40e-3; % focus depth
 alpha_max=deg2rad(20);          % maximum angle span [rad]
 
@@ -31,7 +41,7 @@ prb.N=64;                  % number of elements
 prb.pitch=4e-4;           % probe pitch in azimuth [m]
 prb.element_width=4e-4;   % element width [m]
 prb.element_height=4e-3; % element height [m]
-fig_handle = prb.plot([],'Linear array');
+fig_handle = prb.plot([],['Array and virtual sources for ',transmit_waveform]);
 
 %% Computational grid
 %
@@ -194,12 +204,13 @@ seq=uff.wave();
 for n=1:N_tx
     seq(n)=uff.wave();
     seq(n).source.azimuth=angles(n);
-    seq(n).source.distance = focus_pnt_r%inf%-25/1000%inf;%focus_pnt_r;;%focus_pnt_r;%inf%5e-3%;
+    seq(n).source.distance = virtual_source_distance;%focus_pnt_r%inf%-25/1000%inf;%focus_pnt_r;;%focus_pnt_r;%inf%5e-3%;
     seq(n).probe=prb;
     seq(n).sound_speed=c;    % reference speed of sound [m/s]
     seq(n).delay = min(seq(n).delay_values);
     seq(n).source.plot(fig_handle);
 end
+saveas(fig_handle,['Figures/',transmit_waveform,'_array_virtual_sources.png'])
 %% Calculation
 %
 % We are ready to launch the k-Wave calculation
@@ -305,17 +316,38 @@ channel_data_demod = pre.go();
 channel_data = channel_data_demod;
 
 %% Beamforming
-scan = uff.linear_scan('x_axis',linspace(-40e-3,40e-3,512)','z_axis',linspace(5e-3,domain.z_axis(end),1024)');
+linear_scan = uff.linear_scan('x_axis',linspace(-40e-3,40e-3,512)','z_axis',linspace(10e-3,domain.z_axis(end),1024)');
+sector_scan = uff.sector_scan('azimuth_axis',linspace(deg2rad(-60),deg2rad(60),512)','depth_axis',linspace(10e-3,domain.z_axis(end)+10e-3,1024)');
 mid=midprocess.das();
 mid.code = code.mex;
 mid.spherical_transmit_delay_model = spherical_transmit_delay_model.unified;
-mid.channel_data=channel_data;
-mid.dimension = dimension.both();
-mid.scan=scan;
-mid.transmit_apodization.window = uff.window.none;
-mid.receive_apodization.window=uff.window.hamming;
-mid.receive_apodization.f_number = .5;
+mid.channel_data=channel_data_demod;
+mid.dimension = dimension.receive();
+mid.receive_apodization.window=uff.window.none;
 
-% Delay the data
+if strcmp(transmit_waveform, 'DW') || strcmp(transmit_waveform, 'PW')
+    mid.scan=linear_scan;
+    mid.transmit_apodization.window = uff.window.none;
+elseif strcmp(transmit_waveform, 'FI')
+    mid.scan=sector_scan;
+    mid.transmit_apodization.window = uff.window.hamming;
+    mid.transmit_apodization.f_number = 2.5;
+    mid.transmit_apodization.minimum_aperture = 3/1000;
+end
+
 b_data = mid.go();
-b_data.plot()
+%%
+f = figure()
+b_data.plot(f,[transmit_waveform,' single tx'],[],[],[],[],[],'dark')
+set(gcf,'Position',[1348 423 568 473])
+ylim([10, domain.z_axis(end)*1000]);xlim([-40 40])
+b_data.frame_rate = 1;
+b_data.save_as_gif(['Figures/',transmit_waveform,'single_tx.gif'])
+
+%%
+f=figure();
+mid.dimension = dimension.both();
+b_data_compounded = mid.go()
+b_data_compounded.plot(f,[transmit_waveform,' compounded'],[],[],[],[],[],'dark')
+ylim([10, domain.z_axis(end)*1000]);xlim([-40 40])
+saveas(f,['Figures/',transmit_waveform,'compounded.png'])
