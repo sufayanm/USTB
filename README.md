@@ -28,6 +28,9 @@ compared to the previous version
 
 the main changes are:
 
+* A new implementation of the sector scan allowing to compensate for blocked arrays
+* Improve the speed of the beamformer
+* A CUDA implementation of the generalized beamformer
 * corrected implementation of Unified Delay Model for RTB/MLA processing
 * major update of the FLUST simulator
 * corrected issue with divering wave delay calculation
@@ -62,13 +65,15 @@ Please use the issue tracker to report bugs and make suggestions: https://bitbuc
 
 The project administrators are:
 
-* Alfonso Rodriguez-Molares <alfonso.r.molares@ntnu.no>,
 * Ole Marius Hoel Rindal <omrindal@ifi.uio.no>,
-* Stefano Fiorentini <stefano.fiorentini@ntnu.no>.
- 
+* Stefano Fiorentini <stefano.fiorentini@ntnu.no>,
+* Alfonso Rodriguez-Molares <alfonso.r.molares@ntnu.no>
 
 Collaborators:
 
+* Anders Emil Vrålstad
+* Håvard Kjellmo Arnestad
+* Magnus Dalen Kvalevåg
 * Olivier Bernard
 * Andreas Austeng 
 * Arun Nair
@@ -78,4 +83,3 @@ Collaborators:
 * Hervé Liebgott 
 * Øyvind Krøvel-Velle Standal 
 * Jochen Rau 
-* Stefano Fiorentini
