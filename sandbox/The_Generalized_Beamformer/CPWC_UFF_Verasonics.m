@@ -44,7 +44,9 @@ channel_data=uff.read_object([data_path filesep filename],'/channel_data');
 scan=uff.linear_scan();
 scan.x_axis = linspace(channel_data.probe.x(1),channel_data.probe.x(end),512).';
 scan.z_axis = linspace(3e-3,50e-3,512).';
-    
+scan.plot();
+title('Linear Scan');
+saveas(gcf,'Figures/linear_scan.png')
 %%
 %
 % and beamform

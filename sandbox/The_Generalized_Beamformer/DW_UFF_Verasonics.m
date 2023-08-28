@@ -94,3 +94,10 @@ set(gca,'FontSize',15)
 %%
 f = gcf;
 saveas(f,'Figures/DW.png');
+
+%%
+f = figure();
+mid.dimension = dimension.both();
+b_data2 = mid.go()
+b_data2.plot([].'DW Coherent Compounded');
+saveas(f,'Figures/DW_compounded.png')
