@@ -41,6 +41,18 @@ classdef linear_scan < uff.scan
         function h=linear_scan(varargin)
             h = h@uff.scan(varargin{:});
 
+            if isempty(h.x_axis)
+                h.x_axis = 0;
+            end
+
+            if isempty(h.y_axis)
+                h.y_axis = 0;
+            end
+
+            if isempty(h.z_axis)
+                h.z_axis = 0;
+            end
+
             if isempty(h.transform)
                 h.transform = uff.transform();
             end
@@ -53,7 +65,7 @@ classdef linear_scan < uff.scan
     methods 
         function update_pixel_position(h)
 
-            if isempty(h.x_axis) || isempty(h.y_axis) || isempty(h.z)
+            if isempty(h.x_axis) || isempty(h.y_axis) || isempty(h.z_axis) || isempty(h.transform)
                 return
             end
             
@@ -62,10 +74,9 @@ classdef linear_scan < uff.scan
 
             xyz = [X(:), Y(:), Z(:)];
 
-            for i = 1:length(h.transform)
-                xyz = h.transform(i).apply_transform(xyz);
+            for n = 1:length(h.transform)
+                xyz = h.transform(n).apply_transform(xyz);
             end
-
 
             h.x = xyz(:,1);
             h.y = xyz(:,2);
