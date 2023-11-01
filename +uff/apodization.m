@@ -239,13 +239,13 @@ classdef apodization < uff
                     assert(N_waves==h.focus.N_x_axis*h.focus.N_y_axis/prod(h.MLA), 'The number of waves in the sequence does not match with the number of scanlines and set MLA.');
                     
                     B = zeros([N_waves, h.focus.N_x_axis, h.focus.N_y_axis]);
-                    A = cat(3, cat(2, ones([1, h.MLA]), zeros([1,h.focus.N_x_axis-h.MLA(1), h.MLA(2)])), ...
-                        zeros([1,h.focus.N_x_axis, h.focus.N_y_axis-h.MLA(2)]));
+                    A = cat(2, cat(1, ones([h.MLA, 1]), zeros([h.focus.N_x_axis-h.MLA(1), h.MLA(2)])), ...
+                        zeros([h.focus.N_x_axis, h.focus.N_y_axis-h.MLA(2)]));
 
                     for i = 1:h.focus.N_x_axis/h.MLA(1)
                         for j = 1:h.focus.N_y_axis/h.MLA(2)
                             B(i+(j-1)*h.focus.N_x_axis/h.MLA(1), :, :) = filter2(ones(h.MLA_overlap+1)/prod(h.MLA_overlap+1), ...
-                                circshift(A, [0, (i-1)*h.MLA(1), (j-1)*h.MLA(2)]), 'valid');
+                                circshift(A, [(i-1)*h.MLA(1), (j-1)*h.MLA(2)]), 'same');
                         end
                     end
 
@@ -256,13 +256,13 @@ classdef apodization < uff
                      assert(N_waves==h.focus.N_azimuth_axis*h.focus.N_elevation_axis/prod(h.MLA), 'The number of waves in the sequence does not match with the number of scanlines and set MLA.');
                     
                     B = zeros([N_waves, h.focus.N_azimuth_axis, h.focus.N_elevation_axis]);
-                    A = cat(3, cat(2, ones([1, h.MLA]), zeros([1,h.focus.N_azimuth_axis-h.MLA(1), h.MLA(2)])), ...
-                        zeros([1,h.focus.N_azimuth_axis, h.focus.N_elevation_axis-h.MLA(2)]));
+                    A = cat(2, cat(1, ones([h.MLA, 1]), zeros([h.focus.N_azimuth_axis-h.MLA(1), h.MLA(2)])), ...
+                        zeros([h.focus.N_azimuth_axis, h.focus.N_elevation_axis-h.MLA(2)]));
 
                     for i = 1:h.focus.N_azimuth_axis/h.MLA(1)
                         for j = 1:h.focus.N_elevation_axis/h.MLA(2)
-                            B(i+(j-1)*h.focus.N_x_axis/h.MLA(1), :, :) = filter2(ones(h.MLA_overlap+1)/prod(h.MLA_overlap+1), ...
-                                circshift(A, [0, (i-1)*h.MLA(1), (j-1)*h.MLA(2)]), 'valid');
+                            B(i+(j-1)*h.focus.N_azimuth_axis/h.MLA(1), :, :) = filter2(ones(h.MLA_overlap+1)/prod(h.MLA_overlap+1), ...
+                                circshift(A, [(i-1)*h.MLA(1), (j-1)*h.MLA(2)]), 'same');
                         end
                     end
 
@@ -437,7 +437,7 @@ classdef apodization < uff
                 % Plane Wave case
                 if (h.sequence(n).wavefront==uff.wavefront.plane||isinf(h.sequence(n).source.distance))
 
-                    %% Probably needs to be adapted in case plane waves are used in combination with a non-zero origin.
+                    % Probably needs to be adapted in case plane waves are used in combination with a non-zero origin.
                     tan_theta(:,n)=ones(h.focus.N_pixels,1)*tan(h.sequence(n).source.azimuth - h.tilt(1));
                     tan_phi(:,n)=ones(h.focus.N_pixels,1)*tan(h.sequence(n).source.elevation - h.tilt(2));
                     distance(:,n) = h.focus.z;
