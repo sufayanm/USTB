@@ -32,8 +32,8 @@ classdef apodization < uff
         
         f_number  = [1, 1]              % F-number [Fx Fy] [unitless unitless]
         window    = uff.window.none     % UFF.WINDOW class, default uff.window.none
-        MLA       = 1                   % number of multi-line acquisitions, only valid for uff.window.scanline
-        MLA_overlap = 0                 % number of multi-line acquisitions, only valid for uff.window.scanline
+        MLA       = [1, 0]              % number of multi-line acquisitions, only valid for uff.window.scanline
+        MLA_overlap = [0, 0]            % number of multi-line acquisitions, only valid for uff.window.scanline
         
         tilt      = [0, 0]              % tilt angle [azimuth elevation] [rad rad]
         minimum_aperture = [1e-3, 1e-3] % minimum aperture size in the [x y] direction
@@ -485,7 +485,7 @@ classdef apodization < uff
         
         function figure_handle=plot(h,figure_handle_in,n)
             % PLOT Plot apodization
-            if nargin>1 && not(isempty(figure_handle_in))
+            if nargin>1 && ~(isempty(figure_handle_in))
                 figure_handle=figure(figure_handle_in);
             else
                 figure_handle=figure();
@@ -505,45 +505,80 @@ classdef apodization < uff
                 otherwise
                     error('Plotting apodization is only supported for linear and sector scans')
             end
-          
-            data = h.data; %#ok<*PROPLC>
 
-            subplot(1,2,1);
-            scatter3(h.focus.x*1e3,h.focus.y*1e3,h.focus.z*1e3,12,h.data(:,n),'Marker','.')
-            xlabel('x [mm]');
-            ylabel('y [mm]');
-            ylabel('z [mm]');
-            set(gca,'Ydir','reverse');
-            grid on
-            box on
-            axis equal tight
-            ylabel(colorbar(), 'Apodization value')
-            clim([0, 1])
-            if isreceive
-                title(sprintf('Apodization values for element %d',n));
-            else
-                title(sprintf('Apodization values for wave %d',n));
-            end
+            X = reshape(h.focus.x, dim);
+            Y = reshape(h.focus.y, dim);
+            Z = reshape(h.focus.z, dim);
 
-            [x, z]=ginput(1);
-            while ~isempty(x)
-                [~, ns]=min(sum(bsxfun(@minus, h.focus(1).xyz, [x 0 z]/1e3).^2,2));
-                subplot(1,2,2)
-                plot(data(ns,:))
+            figure_handle.UserData.CData = reshape(h.data, [dim, size(h.data, 2)]);
+            figure_handle.UserData.dim = dim;
+
+
+            if dim(2) == 1 || dim(3) == 1
+                iptPointerManager(figure_handle);
+
+                pb.exitFcn = @(fig,currentPoint) set(fig, 'Pointer','arrow');
+                pb.enterFcn = @(fig,currentPoint) set(fig, 'Pointer','crosshair');
+                pb.traverseFcn = [];
+
+                axH(1) = subplot(1,2,1);
+                tb = axtoolbar('default');
+                btn(1) = axtoolbarbtn(tb, 'push', 'Icon', fullfile(ustb_path(), 'next.png'), 'Tooltip', 'Next','ButtonPushedFcn',@nextItem);
+                btn(2) = axtoolbarbtn(tb, 'push', 'Icon', fullfile(ustb_path(), 'previous.png'), 'Tooltip', 'Previous','ButtonPushedFcn',@previousItem);
+
+                imH(1) = surface(squeeze(X)*1e3,squeeze(Y)*1e3,squeeze(Z)*1e3, squeeze(figure_handle.UserData.CData(:,:,:,n)), 'LineStyle', 'none');
+                iptSetPointerBehavior(imH(1),pb);
+                
+                xlabel('x [mm]')
+                ylabel('y [mm]')
+                zlabel('z [mm]')
                 grid on
-                axis tight
-                ylim([0, 1.2]);
+                box on
+                axis equal tight
+                ylabel(colorbar(), 'Apodization value')
+                set(gca, 'ZDir', 'reverse')
+                clim([0, 1])
+                view(3)
                 if isreceive
-                    title(sprintf('Receive apodization at pixel (%0.2f,%0.2f) mm.',x,z));
-                    xlabel('Element');
+                    title(sprintf('Apodization values for element %d',n));
                 else
-                    title(sprintf('Transmit apodization at pixel (%0.2f,%0.2f) mm.',x,z));
-                    xlabel('wave');
+                    title(sprintf('Apodization values for wave %d',n));
                 end
 
-                subplot(1,2,1);
-                [x, z]=ginput(1);
+                axH(2) = subplot(1,2,2);
+                imH(2) = plot(squeeze(figure_handle.UserData.CData(...
+                    round(figure_handle.UserData.dim(1)/2),round(figure_handle.UserData.dim(2)/2),round(dim(3)/2),:)));
+                imH(1).ButtonDownFcn = {@updateFcn, imH(2)};
+                grid on
+                axis tight
+                ylim([0, 1])
+                if isreceive
+                    title(sprintf('Receive apodization at pixel [%0.2f,%0.2f,%0.2f] mm.',X(end/2),Y(end/2),Z(end/2)))
+                    xlabel('Element')
+                else
+                    title(sprintf('Transmit apodization at pixel [%0.2f,%0.2f,%0.2f] mm.',X(end/2),Y(end/2),Z(end/2)))
+                    xlabel('wave')
+                end
             end
+
         end
     end
+end
+
+function updateFcn(obj, eventObj, plotHandle)
+
+xyz = eventObj.IntersectionPoint;
+
+[~, I] = min(sqrt(sum(xyz.^2-[obj.XData(:), obj.YData(:), obj.ZData(:)].^2, 2)), [], 1);
+[i, j, k] = ind2sub(gcf().UserData.dim,I);
+
+plotHandle.YData = squeeze(gcf().UserData.CData(i,j,k,:));
+end
+
+function previousItem(obj, eventObj)
+fprintf('ok\n')
+end
+
+function nextItem(obj, eventObj)
+fprintf('ok\n')
 end
