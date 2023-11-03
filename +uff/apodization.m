@@ -514,7 +514,6 @@ classdef apodization < uff
             figure_handle.UserData.dim = dim;
             figure_handle.UserData.n = n;
 
-
             if dim(2) == 1 || dim(3) == 1
                 iptPointerManager(figure_handle);
 
@@ -527,8 +526,12 @@ classdef apodization < uff
 
                 % Add navigation buttons
                 tb = axtoolbar('default');
-                axtoolbarbtn(tb, 'push', 'Icon', fullfile(ustb_path(), 'next.png'), 'Tooltip', 'Next','ButtonPushedFcn', @nextItem);
-                axtoolbarbtn(tb, 'push', 'Icon', fullfile(ustb_path(), 'previous.png'), 'Tooltip', 'Previous','ButtonPushedFcn', @previousItem);
+                axtoolbarbtn(tb, 'push', 'Icon', ...
+                    fullfile(matlabroot, 'toolbox/shared/controllib/general/resources/toolstrip_icons/Forward_16.png'), ...
+                    'Tooltip', 'Next','ButtonPushedFcn', @nextItem);
+                axtoolbarbtn(tb, 'push', 'Icon', ...
+                    fullfile(matlabroot, 'toolbox/shared/controllib/general/resources/toolstrip_icons/Back_16.png'), ...
+                    'Tooltip', 'Previous','ButtonPushedFcn', @previousItem);
             
                 imH(1) = surface(squeeze(X)*1e3,squeeze(Y)*1e3,squeeze(Z)*1e3, ...
                     squeeze(figure_handle.UserData.CData(:,:,:,figure_handle.UserData.n)), ...
@@ -555,8 +558,7 @@ classdef apodization < uff
 
                 % Plot 2
                 axH(2) = subplot(1,2,2);
-                imH(2) = plot(squeeze(figure_handle.UserData.CData(...
-                    ijk(1),ijk(2),ijk(3),:)), 'Tag', 'plot2');
+                plot(squeeze(figure_handle.UserData.CData(1,1,1,:)), 'Tag', 'plot2');
                 grid on
                 axis tight
                 ylim([0, 1])
@@ -567,8 +569,9 @@ classdef apodization < uff
                     axH(2).UserData.title = 'Transmit apodization at pixel [%0.2f,%0.2f,%0.2f] mm';
                     xlabel('wave')
                 end
+                ylabel('Apodization weight')
 
-                title(axH(2), sprintf(axH(2).UserData.title,X(end/2),Y(end/2),Z(end/2)))
+                title(axH(2), sprintf(axH(2).UserData.title,X(1),Y(1),Z(1)))
             end
 
         end
