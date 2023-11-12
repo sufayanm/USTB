@@ -118,3 +118,16 @@ b_data_compare.data(:,1,1,2) = b_data_s_dmas.data./max(b_data_s_dmas.data);
 b_data_compare.data(:,1,1,3) = b_data_das.data./max(b_data_das.data);
 b_data_compare.plot([],['1 = DMAS, 2 = Simplified DMAS, 3 = DAS'])
 
+%% Compare DIFF
+f3 = figure;clf
+b_data_dmas.plot(subplot(1,3,1),'DMAS'); % Display image
+ax(1) = gca;
+b_data_s_dmas.plot(subplot(1,3,2),'s-DMAS'); % Display image
+ax(2) = gca;
+subplot(1,3,3)% Display image
+imagesc(b_data_dmas.scan.x_axis*1000, b_data_dmas.scan.z_axis*1000, b_data_dmas.get_image()-b_data_s_dmas.get_image());
+colorbar; axis image;title('Difference image');
+ax(3) = gca;
+linkaxes(ax);
+
+
