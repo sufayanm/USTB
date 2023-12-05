@@ -19,7 +19,7 @@ f0 = 2.7e6;               % Transducer center frequency [Hz]
 bw = 0.9;                 % Transducer bandwidth [1]
 lambda = c0/f0;           % Wavelength [m]
 Nc = 1.5;                 % Number of cycles
-scat_density = 5;
+scat_density = 10;
 
 %% Create idealized Matrix Array
 kerf = lambda/5;
@@ -37,7 +37,7 @@ probe.plot();
 f = 1e3; % focus set at 1000 meters
 
 theta = linspace(-15, 15, 9) * pi / 180; % azimuth tx angles
-phi = 0; %linspace(-10, 10, 5) * pi / 180;  % elevation tx angles
+phi = linspace(-15, 15, 9) * pi / 180;  % elevation tx angles
 
 [TH, PH] = ndgrid(theta, phi);
 
@@ -73,7 +73,7 @@ title('2-way impulse response Field II');
 % === Define region filled with scatterers ===
 zr = [4e-2, 8e-2];
 xr = [-2e-2, 2e-2];
-yr = [-0.2e-2, 0.2e-2];
+yr = [-2e-2, 2e-2];
 
 % === estimate PSF size to calculate scatterer number
 f_n = [3, 3];
@@ -214,23 +214,25 @@ mid.transmit_apodization.maximum_aperture = [probe.N_x, probe.N_y] .* [probe.pit
 
 azBfData = mid.go();
 
-% mid.scan = elScan;
-% elBfData = mid.go();
+mid.scan = elScan;
+elBfData = mid.go();
 
 %% Plot
 Xaz = reshape(azScan.x, [azScan.N_depth_axis, azScan.N_azimuth_axis]);
 Yaz = reshape(azScan.y, [azScan.N_depth_axis, azScan.N_azimuth_axis]);
 Zaz = reshape(azScan.z, [azScan.N_depth_axis, azScan.N_azimuth_axis]);
 
-% Xel = reshape(elScan.x, [elScan.N_depth_axis, elScan.N_elevation_axis]);
-% Yel = reshape(elScan.y, [elScan.N_depth_axis, elScan.N_elevation_axis]);
-% Zel = reshape(elScan.z, [elScan.N_depth_axis, elScan.N_elevation_axis]);
+Xel = reshape(elScan.x, [elScan.N_depth_axis, elScan.N_elevation_axis]);
+Yel = reshape(elScan.y, [elScan.N_depth_axis, elScan.N_elevation_axis]);
+Zel = reshape(elScan.z, [elScan.N_depth_axis, elScan.N_elevation_axis]);
 
 
 figure()
 colormap(gray(256))
 hold on
 surface(Xaz*1e2, Yaz*1e2, Zaz*1e2, reshape(20*log10(abs(azBfData.data) / max(abs(azBfData.data), [], 'all')), [azScan.N_depth_axis, azScan.N_azimuth_axis]), ...
+    'LineStyle', 'none')
+surface(Xel*1e2, Yel*1e2, Zel*1e2, reshape(20*log10(abs(elBfData.data) / max(abs(elBfData.data), [], 'all')), [elScan.N_depth_axis, elScan.N_azimuth_axis]), ...
     'LineStyle', 'none')
 hold off
 grid on
