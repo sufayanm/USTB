@@ -113,7 +113,7 @@ ch = zeros([length(to(1:downfact:end)), probe.N_elements, N_waves], 'single');
 field_init(0)
 set_field('c',c0);              % Speed of sound [m/s]
 set_field('fs',fs);             % Sampling frequency [Hz]
-set_field('threads', 12)
+%set_field('threads', 12)
 set_field('show_times', 0)
 
 noSubAz = round(probe.element_width/(lambda/8));        % number of subelements in the azimuth direction
