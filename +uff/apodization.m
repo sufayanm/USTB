@@ -592,7 +592,7 @@ classdef apodization < uff
             axis equal tight
             ylabel(colorbar(), 'Apodization')
             set(gca, 'ZDir', 'reverse')
-            clim([0, 1])
+            caxis([0, 1])
             view(3)
             if isreceive
                 ax(1).UserData.title = 'Receive apodization rendering for element %d';
