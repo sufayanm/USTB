@@ -68,6 +68,14 @@ classdef sector_scan < uff.scan
                 return
             end
 
+            if h.N_azimuth_axis == 1 && h.N_elevation_axis == 1 % Parameter are not set yet
+                return
+            end
+
+            if all(size(h.origin) == [h.N_elevation_axis,h.N_azimuth_axis]) % Transpose if stored incorrectly
+                h.origin = h.origin.';
+            end
+            
             assert(h.N_origins == 1 || all(size(h.origin) == [h.N_azimuth_axis, h.N_elevation_axis]), ...
                 'Number of origins should be either one or equal to the number of scan lines.');
                      
