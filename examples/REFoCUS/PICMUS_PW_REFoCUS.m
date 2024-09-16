@@ -1,6 +1,7 @@
 %% REFOCUS on PW data
+%   authors:  Anders E. Vrålstad <anders.e.vralstad@ntnu.no>
 %
-%   $Last updated: 2017/09/15$
+%   $Last updated: 2024/09/16$
 
 %% Getting the data
 %
@@ -37,46 +38,43 @@ pipe.transmit_apodization.window=uff.window.tukey50;
 pipe.transmit_apodization.f_number=1.7;
 
 % launch beamforming
-b_data_new=pipe.go({midprocess.das postprocess.coherent_compounding});
+b_data=pipe.go({midprocess.das postprocess.coherent_compounding});
+
+%% Run REFOCUS preprocess
+
+tic
+refocus = preprocess.refocus();
+refocus.input = channel_data;
+refocus.use_filter = 0;
+refocus.regularization = @Hinv_tikhonov;
+refocus.decode_parameter = 1e-1;
+refocus.post_pad_samples = 0;
+channel_data_REFOCUS = refocus.go();
+toc()
 
 %%
-channel_data.data = single(channel_data.data);
+demod = preprocess.fast_demodulation();
+demod.plot_on = true;
+demod.input = channel_data_REFOCUS;
+channel_data_REFOCUS_demod = demod.go();
+
+%% Do beamforming of REFoCUS
+mid_REFOCUS = midprocess.das();
+mid_REFOCUS.channel_data=channel_data_REFOCUS_demod;
+mid_REFOCUS.dimension = dimension.both();
+mid_REFOCUS.scan=scan;
+mid_REFOCUS.code = code.mex;
+mid_REFOCUS.transmit_apodization.window=uff.window.boxcar;
+mid_REFOCUS.transmit_apodization.f_number=1.7;
+mid_REFOCUS.receive_apodization.window=uff.window.boxcar;
+mid_REFOCUS.receive_apodization.f_number=1.7;
+b_data_REFOCUS = mid_REFOCUS.go();
 
 %% Comparing results
 %
 % We plot both images side by side.
 
 figure;
-b_data.plot(subplot(1,2,1),'Original');
-b_data_new.plot(subplot(1,2,2),'New');
+b_data.plot(subplot(1,2,1),'RTB');
+b_data_REFOCUS.plot(subplot(1,2,2),'REFoCUS');
 set(gcf,'Position',[100   100   750   450])
-
-% Run REFOCUS preprocess
-tic
-refocus = preprocess.refocus()
-refocus.input = channel_data;
-refocus.use_filter = 0;
-refocus.regularization = @Hinv_tikhonov;
-refocus.decode_parameter = 1e-1;
-refocus.post_pad_samples = 0;
-channel_data_REFOCUS = refocus.go()
-toc()
-
-%%
-demod = preprocess.fast_demodulation()
-%demod.modulation_frequency = 2.5*10^6;
-demod.plot_on = true
-demod.input = channel_data_REFOCUS;
-channel_data_REFOCUS_demod = demod.go()
-
-%% Do beamforming
-mid_REFOCUS = midprocess.das()
-mid_REFOCUS.channel_data=channel_data_REFOCUS_demod;
-mid_REFOCUS.dimension = dimension.both();
-mid_REFOCUS.scan=scan;
-mid_REFOCUS.code = code.mex;
-mid_REFOCUS.transmit_apodization.window=uff.window.none;
-mid_REFOCUS.receive_apodization.window=uff.window.none;
-mid_REFOCUS.receive_apodization.f_number=1;
-b_data_delayed_REFOCUS = mid_REFOCUS.go()
-b_data_delayed_REFOCUS.plot();
