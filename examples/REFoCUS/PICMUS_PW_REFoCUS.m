@@ -1,47 +1,48 @@
 %% REFOCUS on PW data
+% The very fasinating REFoCUS algorithm published in
+% Nick Bottenus and
+% further develop in 
+%
+% Is quite fasinating! Here we explore the concept by comparing
+% conventional PW beamforming using the generalized beamformer in the USTB,
+% and use REFoCUS to refocus the PW channel data into a STAI channel data.
+%
 %   authors:  Anders E. Vrålstad <anders.e.vralstad@ntnu.no>
-%
-%   $Last updated: 2024/09/16$
+%             Ole Marius Hoel Rindal <omrindal@ifi.uio.no>
+%   $Last updated: 2024/11/09$
 
-%% Getting the data
-%
-% We define the local path and the url where the data is stored
+clear all;
+close all;
 
+%% Load the channel data
 % data location
 url='http://ustb.no/datasets/';      % if not found data will be downloaded from here
-filename='PICMUS_experiment_contrast_speckle.uff';
-
+filename='PICMUS_experiment_contrast_speckle.uff'
+tools.download(filename, url, data_path);  
 % checks if the data is in your data path, and downloads it otherwise.
 % The defaults data path is under USTB's folder, but you can change this
 % by setting an environment variable with setenv(DATA_PATH,'the_path_you_want_to_use');
-tools.download(filename, url, data_path);   
+local_path = [ustb_path(),'/data/']; 
+channel_data = uff.read_object([local_path, filename],'/channel_data');
 
+% Create a quite large scan (outside the conventional PW area) to help the
+% visualziation on the differece between conventional PW and REFoCUS.
 scan = uff.linear_scan();
-scan.x_axis = linspace(-30/1000,30/1000,1024)';
-scan.z_axis = linspace(3/1000,60/1000,1024)';
-%% Beamforming
-%
-% We define a beamformer, and the corresponding transmit and apodization
-% windows, and launch it.
+scan.x_axis = linspace(-30/1000,30/1000,512)';
+scan.z_axis = linspace(3/1000,60/1000,512)';
 
-pipe=pipeline();
-pipe.channel_data=channel_data;
-pipe.scan=scan;
-    
-% receive apodization
-pipe.receive_apodization.window=uff.window.tukey50;
-pipe.receive_apodization.f_number=1.7;
-
-% transmit apodization
-pipe.transmit_apodization.window=uff.window.tukey50;
-pipe.transmit_apodization.f_number=1.7;
-
-% launch beamforming
-b_data=pipe.go({midprocess.das postprocess.coherent_compounding});
+%% Conventional Beamforming
+das = midprocess.das();
+das.channel_data=channel_data;
+das.scan=scan;
+das.dimension = dimension.both()
+das.receive_apodization.window=uff.window.boxcar;
+das.receive_apodization.f_number=1.7;
+das.transmit_apodization.window=uff.window.boxcar;
+das.transmit_apodization.f_number=1.7;
+b_data=das.go();
 
 %% Run REFOCUS preprocess
-
-tic
 refocus = preprocess.refocus();
 refocus.input = channel_data;
 refocus.use_filter = 0;
@@ -49,30 +50,12 @@ refocus.regularization = @Hinv_tikhonov;
 refocus.decode_parameter = 1e-1;
 refocus.post_pad_samples = 0;
 channel_data_REFOCUS = refocus.go();
-toc()
 
-%%
-demod = preprocess.fast_demodulation();
-demod.plot_on = true;
-demod.input = channel_data_REFOCUS;
-channel_data_REFOCUS_demod = demod.go();
-
-%% Do beamforming of REFoCUS
-mid_REFOCUS = midprocess.das();
-mid_REFOCUS.channel_data=channel_data_REFOCUS_demod;
-mid_REFOCUS.dimension = dimension.both();
-mid_REFOCUS.scan=scan;
-mid_REFOCUS.code = code.mex;
-mid_REFOCUS.transmit_apodization.window=uff.window.boxcar;
-mid_REFOCUS.transmit_apodization.f_number=1.7;
-mid_REFOCUS.receive_apodization.window=uff.window.boxcar;
-mid_REFOCUS.receive_apodization.f_number=1.7;
-b_data_REFOCUS = mid_REFOCUS.go();
+%% Do beamforming with REFoCUSed channel data
+das.channel_data = channel_data_REFOCUS;
+b_data_REFOCUS = das.go();
 
 %% Comparing results
-%
-% We plot both images side by side.
-
 figure;
 b_data.plot(subplot(1,2,1),'RTB');
 b_data_REFOCUS.plot(subplot(1,2,2),'REFoCUS');
@@ -83,4 +66,41 @@ b_data_compare.data(:,:,1,1) = b_data.data./max(b_data.data(:));
 b_data_compare.data(:,:,1,2) = b_data_REFOCUS.data./max(b_data_REFOCUS.data(:));
 b_data_compare.plot()
 
+%% Comparing conventional PW and REFOCUS on a single PW transmit
+transmit_index = 37 %Choose from 1 to 75
+channel_data_single_tx = uff.channel_data(channel_data);
+channel_data_single_tx.sequence = channel_data.sequence(transmit_index);
+channel_data_single_tx.data = channel_data.data(:,:,transmit_index);
+
+das.channel_data = channel_data_single_tx;
+b_data_conv_single_tx = das.go();
+b_data_conv_single_tx.plot([],'Conventional PW beamforming')
+
+refocus.input = channel_data_single_tx;
+channel_data_REFOCUS_single_tx = refocus.go();
+
+%% Refocus
+das.channel_data = channel_data_REFOCUS_single_tx;
+b_data_REFOCUS_single_tx = das.go();
+b_data_REFOCUS_single_tx.plot([],'REFoCUS beamforming')
+
+%% Compare the results
+b_data_compare = uff.beamformed_data(b_data)
+b_data_compare.data(:,:,1,1) = b_data_conv_single_tx.data./max(b_data_conv_single_tx.data(:));
+b_data_compare.data(:,:,1,2) = b_data_REFOCUS_single_tx.data./max(b_data_REFOCUS_single_tx.data(:));
+b_data_compare.plot()
+
+%% 
+das.channel_data=channel_data;
+das.scan=scan;
+das.transmit_apodization.window = uff.window.none;
+das.dimension = dimension.receive();
+b_data_conv_tx = das.go();
+b_data_conv_tx.frame_rate = 10;
+b_data_conv_tx.plot([],'Conventional PW beamforming')
+
+das.channel_data = channel_data_REFOCUS;
+b_data_refocus_tx = das.go();
+b_data_refocus_tx.frame_rate = 10;
+b_data_refocus_tx.plot([],'REFoCUS beamforming')
 
