@@ -31,7 +31,7 @@ scan = uff.linear_scan();
 scan.x_axis = linspace(-30/1000,30/1000,512)';
 scan.z_axis = linspace(3/1000,60/1000,512)';
 
-%% Conventional Beamforming
+%% Conventional Beamforming using the generalized beamformer
 das = midprocess.das();
 das.channel_data=channel_data;
 das.scan=scan;
@@ -42,7 +42,7 @@ das.transmit_apodization.window=uff.window.boxcar;
 das.transmit_apodization.f_number=1.7;
 b_data=das.go();
 
-%% Run REFOCUS preprocess
+%% Run REFOCUS preprocess to create multistatic/STAI channel data
 refocus = preprocess.refocus();
 refocus.input = channel_data;
 refocus.use_filter = 0;
@@ -90,7 +90,10 @@ b_data_compare.data(:,:,1,1) = b_data_conv_single_tx.data./max(b_data_conv_singl
 b_data_compare.data(:,:,1,2) = b_data_REFOCUS_single_tx.data./max(b_data_REFOCUS_single_tx.data(:));
 b_data_compare.plot()
 
-%% 
+%% A nice way to further understand what REFoCUS does is to visualize each
+% transmit event separately. Then conventional PW will be each PW transmit
+% image, while from the REFoCUS channel data each element is now the
+% transmitter. Quite fasinating!
 das.channel_data=channel_data;
 das.scan=scan;
 das.transmit_apodization.window = uff.window.none;
