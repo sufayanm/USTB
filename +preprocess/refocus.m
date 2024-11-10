@@ -4,6 +4,7 @@ classdef refocus < preprocess
     %   authors: Anders E. Vrålstad <anders.e.vralstad@ntnu.no>
     %            Nick Bottenus
     %            Rehman Ali
+    %            Ole Marius Hoel Rindal <olemarius@olemarius.net>
     %   
     %   Code adapted from 
     %   github.com/nbottenus/REFoCUS
@@ -14,7 +15,10 @@ classdef refocus < preprocess
     methods (Access = public)
         function h = refocus()
             h.name='REFoCUS implemented in MATLAB';
-            h.reference='www.github.com/nbottenus/REFoCUS';
+            h.reference=['Ali, R., Herickhoff, C. D., Hyun, D., Dahl, J. J., & Bottenus, N. (2020). Extending Retrospective'...
+                'Encoding for Robust Recovery of the Multistatic Data Set. IEEE Transactions on Ultrasonics,'...
+                'Ferroelectrics, and Frequency Control, 67(5), 943–956. https://doi.org/10.1109/TUFFC.2019.2961875'...
+                'Original REFoCUS code from www.github.com/nbottenus/REFoCUS'];
             h.implemented_by={'Anders E. Vrålstad <anders.e.vralstad@ntnu.no>'};
             h.version='v1.1.0'; 
         end
@@ -193,6 +197,9 @@ classdef refocus < preprocess
     
     methods (Access = public)
         function output=go(h)  
+            disp('This is citationware. If you use REFoCUS in your publication you have to cite')
+            fprintf('%s\n', h.reference);
+            fprintf('Starting to REFoCUS channel data..');tic()
             % Check if we can skip calculation
             if h.check_hash()
                 output= h.output;
@@ -258,6 +265,8 @@ classdef refocus < preprocess
 
             % Update hash
             h.save_hash();
+            processing_time = toc();
+            fprintf(['.Completed in ',num2str(processing_time),' seconds. \n'])
         end
     end
 end
