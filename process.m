@@ -51,18 +51,14 @@ classdef process < handle
         
         
         function h=save_hash(h)
-            h.last_hash=h.hash();
+            % DISABLED: hashing disabled to avoid probe type issues
+            % h.last_hash=h.hash();
         end
         
         
         function equal=check_hash(h)
-            if isempty(h.last_hash) equal=false;
-            else
-                equal=strcmp(h.hash(),h.last_hash); 
-                if equal 
-                    warning('Inputs and outputs are unchanged. Skipping process...'); 
-                end
-            end
+            % DISABLED: hashing disabled to avoid probe type issues
+            equal=false;  % Always return false to never skip processing
         end
         
     end

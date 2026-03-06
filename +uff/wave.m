@@ -67,7 +67,6 @@ classdef wave < uff
     properties  (Dependent)
         N_elements         % number of elements
         delay_values       % delay [s]
-        apodization_values % apodization [unitless]
         t0_origin          % delay [s] needed in case the t0 should be calculated from origin.xyz rather than [0, 0, 0]
     end
     

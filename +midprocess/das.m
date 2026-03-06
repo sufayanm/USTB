@@ -51,6 +51,7 @@ classdef das < midprocess
             w0=2*pi*modulation_frequency;
 
             % calculate transmit apodization according to 10.1109/TUFFC.2015.007183
+            h.transmit_apodization.probe=[];
             h.transmit_apodization.sequence=h.channel_data.sequence;
             h.transmit_apodization.focus=h.scan;
             tx_apodization=single(h.transmit_apodization.data);
