@@ -110,6 +110,7 @@ for n=1:probe.N
     seq(n).probe=probe;
     seq(n).source.xyz=[probe.x(n) probe.y(n) probe.z(n)];
     seq(n).sound_speed=c0;
+    seq(n).origin.x = probe.x(n);
     seq(n).delay = probe.r(n)/c0-lag*dt+t; % t0 and center of pulse compensation
 end
 close(wb);

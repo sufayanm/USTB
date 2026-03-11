@@ -65,7 +65,7 @@ pulse_duration          = 2.5;             % pulse duration [cycles]
 % <http://field-ii.dk/ 'Field II'> for a more accurate model.
 
 pulse = uff.pulse();
-puse.center_frequency = f0;
+pulse.center_frequency = f0;
 pulse.fractional_bandwidth = 0.65;        % probe bandwidth [1]
 t0 = (-1/pulse.fractional_bandwidth/f0): dt : (1/pulse.fractional_bandwidth/f0);
 impulse_response = gauspuls(t0, f0, pulse.fractional_bandwidth);
@@ -148,6 +148,7 @@ for n=1:probe.N
     seq(n)=uff.wave();
     seq(n).probe=probe;
     seq(n).source.xyz=[probe.x(n) probe.y(n) probe.z(n)];
+    seq(n).origin.x = probe.x(n);
     seq(n).sound_speed=c0;
     seq(n).delay = probe.r(n)/c0-lag*dt+t; % t0 and center of pulse compensation
 end

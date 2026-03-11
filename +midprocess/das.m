@@ -15,10 +15,12 @@ classdef das < midprocess
         
         spherical_transmit_delay_model = spherical_transmit_delay_model.hybrid; % spherical transmit delay model enumeration for deciding model when the source is in front of the transducer
         pw_margin = 1e-3;                   % The margin of the area around focus in m for the spherical_transmit_delay_model.hybrid
-        
+
+        lens_delay = 0;                     % Additional delay added to the receive delay
+        blending_power = 1/2; 
         transmit_delay                      % Variable returning the calculated tx part of the receive delay so that it can be plotted
         receive_delay                       % Variable returning the calculated rx part of the receive delay so that it can be plotted
-
+        
         elapsed_time                        % Variable to store the beamforming time. Used for benchmarking
     end
     
@@ -36,12 +38,6 @@ classdef das < midprocess
     methods
         function beamformed_data=go(h)
             
-            % check if we can skip calculation
-            if h.check_hash()
-                beamformed_data= h.beamformed_data;
-                return;
-            end
-            
             % short names
             N_pixels = h.scan.N_pixels;
             N_channels = h.channel_data.N_channels;
@@ -55,6 +51,7 @@ classdef das < midprocess
             w0=2*pi*modulation_frequency;
 
             % calculate transmit apodization according to 10.1109/TUFFC.2015.007183
+            h.transmit_apodization.probe=[];
             h.transmit_apodization.sequence=h.channel_data.sequence;
             h.transmit_apodization.focus=h.scan;
             tx_apodization=single(h.transmit_apodization.data);
@@ -68,7 +65,7 @@ classdef das < midprocess
             xm=bsxfun(@minus,h.channel_data.probe.x.',h.scan.x);
             ym=bsxfun(@minus,h.channel_data.probe.y.',h.scan.y);
             zm=bsxfun(@minus,h.channel_data.probe.z.',h.scan.z);
-            receive_delay=single(sqrt(xm.^2+ym.^2+zm.^2)/h.channel_data.sound_speed); %#ok<*PROP> 
+            receive_delay=single(sqrt(xm.^2+ym.^2+zm.^2)/h.channel_data.sound_speed+h.lens_delay); %#ok<*PROP> 
             h.receive_delay = receive_delay;
             
             % calculate transmit delay
@@ -84,8 +81,8 @@ classdef das < midprocess
                             % distance between source and elements
                             transmit_delay(:,n_wave)=(-1).^(h.scan.z<h.channel_data.sequence(n_wave).source.z).*sqrt((h.channel_data.sequence(n_wave).source.x-h.scan.x).^2+(h.channel_data.sequence(n_wave).source.y-h.scan.y).^2+(h.channel_data.sequence(n_wave).source.z-h.scan.z).^2);
                             
-                            % add distance from source to coordinate system origin
-                            if (h.channel_data.sequence(n_wave).source.z<-1e-3) %Diverging Wave (DW) transmit
+                            % add distance from source to origin
+                            if (h.channel_data.sequence(n_wave).source.z<0) %Diverging Wave (DW) transmit
                                 transmit_delay(:,n_wave)=transmit_delay(:,n_wave)-abs(h.channel_data.sequence(n_wave).source.distance);
                             else % if virtual source in front of transducer
                                 switch h.spherical_transmit_delay_model
@@ -115,6 +112,7 @@ classdef das < midprocess
                                                 error('Only linear scan and sector scan in 2D is supported for the unified spherical transmit delay model.');
                                             end
                                         end
+                                        mask_all_waves(isnan(mask_all_waves)) = 0;
                                         transmit_delay(:,n_wave) = tools.calculate_unified_delay_model(transmit_delay(:,n_wave),logical(mask_all_waves(:,:,n_wave)),...
                                                                             h.scan,h.channel_data.sequence(n_wave).source);
                                     case spherical_transmit_delay_model.hybrid
@@ -136,6 +134,19 @@ classdef das < midprocess
                                         transmit_delay_temp = transmit_delay(:,n_wave)+h.channel_data.sequence(n_wave).source.distance;
                                         transmit_delay_temp(z_mask) = plane_delay(z_mask);
                                         transmit_delay(:,n_wave) = transmit_delay_temp;
+                                    case spherical_transmit_delay_model.blended
+                                        if isa(h.scan,'uff.linear_scan')
+                                            plane_delay = (-1).^(h.scan.z<h.channel_data.sequence(n_wave).source.z).*sqrt((h.channel_data.sequence(n_wave).source.z-h.scan.z).^2) + h.channel_data.sequence(n_wave).source.distance;
+                                        elseif isa(h.scan,'uff.sector_scan')
+                                            plane_delay = h.scan.z*cos(h.channel_data.sequence(n_wave).source.azimuth)*cos(h.channel_data.sequence(n_wave).source.elevation)+h.scan.x*sin(h.channel_data.sequence(n_wave).source.azimuth)*cos(h.channel_data.sequence(n_wave).source.elevation)+h.scan.y*sin(h.channel_data.sequence(n_wave).source.elevation);
+                                        else
+                                            error('Only linear scan and sector scan in 2D is supported for the hybrid spherical transmit delay model.');
+                                        end
+
+                                        normalized_distance = min(abs(h.channel_data.sequence(n_wave).source.distance-sqrt(sum(h.scan.xyz.^2,2))) ./ h.channel_data.sequence(n_wave).source.distance, 1);
+                                        
+                                        transmit_delay(:,n_wave) = transmit_delay(:,n_wave) + h.channel_data.sequence(n_wave).source.distance;
+                                        transmit_delay(:,n_wave) = transmit_delay(:,n_wave).*normalized_distance.^h.blending_power + plane_delay.*(1-normalized_distance.^h.blending_power);
                                 end
                             end  
                         end
@@ -160,7 +171,6 @@ classdef das < midprocess
             h.transmit_delay = transmit_delay;
             
             ch_data=single(h.channel_data.data);
-
             if (abs(w0)<eps)
                 ch_data = hilbert(ch_data);
             end
@@ -266,8 +276,6 @@ classdef das < midprocess
             % pass a reference
             beamformed_data = h.beamformed_data;
             
-            % update hash
-            h.save_hash();
         end % end go()
     end
 end

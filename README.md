@@ -28,6 +28,9 @@ compared to the previous version
 
 the main changes are:
 
+* A new implementation of the sector scan allowing to compensate for blocked arrays
+* Improve the speed of the beamformer
+* A CUDA implementation of the generalized beamformer
 * corrected implementation of Unified Delay Model for RTB/MLA processing
 * major update of the FLUST simulator
 * corrected issue with divering wave delay calculation
@@ -36,6 +39,9 @@ the main changes are:
 * several bugfixes and other improvements have been done as well.
 * more tests have been added
 
+### Using a MAC? ###
+If you are using a Mac and are getting an error running the das_c.mexmaca64 file be sure to install rhw oneTBB parallellization library
+oneTBB (formerly Intel TBB) can be installed with Homebrew using the command "brew install tbb".
 
 ### Documentation ###
 Unfortunately, we have not had the time or resources to write a full documentation of the USTB. However, there are plenty of well documented examples that will help you to get started and hopefully understand the code. You find the examples under the /examples folder. 
@@ -62,13 +68,15 @@ Please use the issue tracker to report bugs and make suggestions: https://bitbuc
 
 The project administrators are:
 
-* Alfonso Rodriguez-Molares <alfonso.r.molares@ntnu.no>,
 * Ole Marius Hoel Rindal <omrindal@ifi.uio.no>,
-* Stefano Fiorentini <stefano.fiorentini@ntnu.no>.
- 
+* Stefano Fiorentini <stefano.fiorentini@ntnu.no>,
+* Alfonso Rodriguez-Molares <alfonso.r.molares@ntnu.no>
+* Anders Emil Vrålstad <anders.e.vralstad@ntnu.no>
 
 Collaborators:
 
+* Håvard Kjellmo Arnestad
+* Magnus Dalen Kvalevåg
 * Olivier Bernard
 * Andreas Austeng 
 * Arun Nair
@@ -78,4 +86,3 @@ Collaborators:
 * Hervé Liebgott 
 * Øyvind Krøvel-Velle Standal 
 * Jochen Rau 
-* Stefano Fiorentini

@@ -59,6 +59,7 @@ classdef wave < uff
         event              % index of the transmit/receive event this wave refers to
         delay = 0          % time interval between t0 and acquistion start
         sound_speed = 1540 % reference speed of sound
+        apodization_values % apodization [unitless]
     end
     
     
@@ -66,7 +67,7 @@ classdef wave < uff
     properties  (Dependent)
         N_elements         % number of elements
         delay_values       % delay [s]
-        apodization_values % apodization [unitless]
+        t0_origin          % delay [s] needed in case the t0 should be calculated from origin.xyz rather than [0, 0, 0]
     end
     
     %% constructor -> uff constructor
@@ -159,18 +160,32 @@ classdef wave < uff
             h.wavefront=in_wavefront;
         end
     end
-    
+
     %% get methods
     methods
+        function value = get.t0_origin(h)
+            % The sign is automatically calculated whether the source is 
+            % located in front or behind the transducer, so that this 
+            % quantity can be simply added to wave.delay
+
+            if(h.source.z<0)
+                value = -sqrt(sum(h.source.xyz.^2)) + sqrt(sum((h.source.xyz-h.origin.xyz).^2));
+            else
+                value = sqrt(sum(h.source.xyz.^2)) - sqrt(sum((h.source.xyz-h.origin.xyz).^2));
+            end
+
+            value = value/h.sound_speed;
+        end
+
+
         function value=get.N_elements(h)
             value=h.probe.N_elements;
         end
-        
+
         function value=get.delay_values(h)
             assert(~isempty(h.probe),'The PROBE must be inserted for delay calculation');
             assert(~isempty(h.sound_speed),'The sound speed must be inserted for delay calculation');
 
-%             source_origin_dist = sqrt(sum((h.source.xyz-h.origin.xyz).^2));
             source_origin_dist = sqrt(sum(h.source.xyz.^2));
             if ~isinf(source_origin_dist)
                 dst=sqrt((h.probe.x-h.source.x).^2+(h.probe.y-h.source.y).^2+(h.probe.z-h.source.z).^2);
@@ -180,7 +195,7 @@ classdef wave < uff
                     value=source_origin_dist/h.sound_speed-dst/h.sound_speed;
                 end
             else
-                value=(h.probe.x-h.origin.x)*sin(h.source.azimuth)/h.sound_speed+(h.probe.y-h.origin.y)*sin(h.source.elevation)/h.sound_speed;
+                value=(h.probe.x)*sin(h.source.azimuth)/h.sound_speed+(h.probe.y)*sin(h.source.elevation)/h.sound_speed;
             end
         end
         
@@ -192,6 +207,5 @@ classdef wave < uff
                 value=h.apodization.data();
             end
         end
-    end
-    
+    end    
 end
