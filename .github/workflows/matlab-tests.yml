@@ -8,7 +8,7 @@ on:
 
 jobs:
   smoke-test:
-    name: Run Smoke Tests
+    name: Run Tests
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -34,7 +34,7 @@ jobs:
           path: test-results/results.xml
 
   unit-tests:
-    name: Run Unit Tests
+    name: Run Legacy Tests
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
