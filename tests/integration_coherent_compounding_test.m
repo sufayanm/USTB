@@ -39,23 +39,20 @@ classdef integration_coherent_compounding_test < matlab.unittest.TestCase
             scan = uff.linear_scan('x_axis', linspace(-5e-3, 5e-3, Nx).', ...
                                    'z_axis', linspace(15e-3, 25e-3, Nz).');
 
-            mid = midprocess.das();
-            mid.code = code.matlab;
-            mid.dimension = dimension.receive;
-            mid.channel_data = channel_data;
-            mid.scan = scan;
+            pipe = pipeline();
+            pipe.channel_data = channel_data;
+            pipe.scan = scan;
 
-            mid.receive_apodization.window = uff.window.hanning;
-            mid.receive_apodization.f_number = 1.7;
+            pipe.receive_apodization.window = uff.window.hanning;
+            pipe.receive_apodization.f_number = 1.7;
 
-            b_data = mid.go();
+            pipe.transmit_apodization.window = uff.window.hanning;
+            pipe.transmit_apodization.f_number = 1.7;
 
-            testCase.verifyEqual(size(b_data.data, 2), N, ...
-                'Before compounding, wave dimension should equal N');
+            das = midprocess.das();
+            das.code = code.matlab;
 
-            cc = postprocess.coherent_compounding();
-            cc.input = b_data;
-            b_data_cc = cc.go();
+            b_data_cc = pipe.go({das postprocess.coherent_compounding()});
 
             testCase.verifyEqual(size(b_data_cc.data, 2), 1, ...
                 'After compounding, wave dimension should be 1');

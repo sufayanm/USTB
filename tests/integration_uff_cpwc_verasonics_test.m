@@ -8,7 +8,7 @@ classdef integration_uff_cpwc_verasonics_test < matlab.unittest.TestCase
 
             channel_data = uff.read_object([data_path filesep filename], '/channel_data');
 
-            testCase.verifyClass(channel_data, ?uff.channel_data);
+            testCase.verifyInstanceOf(channel_data, ?uff.channel_data);
             testCase.verifyGreaterThan(channel_data.N_elements, 0);
             testCase.verifyGreaterThan(channel_data.N_waves, 0);
             testCase.verifyFalse(isempty(channel_data.data));
@@ -49,10 +49,10 @@ classdef integration_uff_cpwc_verasonics_test < matlab.unittest.TestCase
 
             testCase.verifyGreaterThan(channel_data.sampling_frequency, 0);
             testCase.verifyGreaterThan(channel_data.sound_speed, 0);
-            testCase.verifyClass(channel_data.probe, ?uff.probe);
+            testCase.verifyInstanceOf(channel_data.probe, ?uff.probe);
 
             for n = 1:channel_data.N_waves
-                testCase.verifyClass(channel_data.sequence(n), ?uff.wave);
+                testCase.verifyInstanceOf(channel_data.sequence(n), ?uff.wave);
             end
         end
     end

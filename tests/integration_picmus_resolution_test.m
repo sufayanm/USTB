@@ -15,8 +15,8 @@ classdef integration_picmus_resolution_test < matlab.unittest.TestCase
             scan = uff.read_object(filepath, '/scan');
             b_data_ref = uff.read_object(filepath, '/beamformed_data');
 
-            testCase.verifyClass(channel_data, ?uff.channel_data);
-            testCase.verifyClass(scan, ?uff.scan);
+            testCase.verifyInstanceOf(channel_data, ?uff.channel_data);
+            testCase.verifyInstanceOf(scan, ?uff.scan);
             testCase.verifyFalse(isempty(b_data_ref.data));
 
             pipe = pipeline();

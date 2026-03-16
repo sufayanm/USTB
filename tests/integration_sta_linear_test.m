@@ -23,8 +23,6 @@ classdef integration_sta_linear_test < matlab.unittest.TestCase
                 seq(n).probe = prb;
                 seq(n).wavefront = uff.wavefront.spherical;
                 seq(n).source.xyz = [prb.x(n) prb.y(n) prb.z(n)];
-                seq(n).apodization = uff.apodization('window', uff.window.sta);
-                seq(n).apodization.origin = seq(n).source;
                 seq(n).sound_speed = pha.sound_speed;
             end
 
