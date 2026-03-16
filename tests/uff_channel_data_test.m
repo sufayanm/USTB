@@ -17,7 +17,12 @@ classdef uff_channel_data_test < matlab.unittest.TestCase
         end
 
         function test_data_dimensions(testCase)
+            prb = uff.linear_array();
+            prb.N = 64;
+            prb.pitch = 300e-6;
+
             cd = uff.channel_data();
+            cd.probe = prb;
             cd.data = randn(100, 64, 11, 2);
 
             testCase.verifyEqual(cd.N_samples, 100);
@@ -27,7 +32,12 @@ classdef uff_channel_data_test < matlab.unittest.TestCase
         end
 
         function test_single_frame_data(testCase)
+            prb = uff.linear_array();
+            prb.N = 32;
+            prb.pitch = 300e-6;
+
             cd = uff.channel_data();
+            cd.probe = prb;
             cd.data = randn(200, 32, 5);
 
             testCase.verifyEqual(cd.N_samples, 200);
