@@ -45,7 +45,10 @@ classdef integration_sta_phased_test < matlab.unittest.TestCase
             pipe.transmit_apodization.window = uff.window.tukey50;
             pipe.transmit_apodization.f_number = 1.7;
 
-            b_data = pipe.go({midprocess.das() postprocess.coherent_compounding()});
+            das = midprocess.das();
+            das.code = code.matlab;
+
+            b_data = pipe.go({das postprocess.coherent_compounding()});
 
             testCase.verifyEqual(size(b_data.data, 2), 1, ...
                 'Coherent compounding should reduce wave dimension to 1');

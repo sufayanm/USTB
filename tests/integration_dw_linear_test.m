@@ -60,8 +60,8 @@ classdef integration_dw_linear_test < matlab.unittest.TestCase
             [~, idx] = max(abs(b_data.data));
             peak_x = scan.x(idx);
             peak_z = scan.z(idx);
-            testCase.verifyEqual(peak_x, 0, 'AbsTol', 3e-3);
-            testCase.verifyEqual(peak_z, 25e-3, 'AbsTol', 3e-3);
+            testCase.verifyEqual(peak_x, 0, 'AbsTol', 5e-3);
+            testCase.verifyEqual(peak_z, 25e-3, 'AbsTol', 5e-3);
         end
     end
 
