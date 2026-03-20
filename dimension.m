@@ -18,7 +18,8 @@ classdef dimension < int32
     %   See also MIDPROCESS.DAS, CODE
     %
     %   References:
-    %       Rindal et al., "The Generalized Beamformer", 2025
+    %       Rindal et al., "The Generalized Beamformer", TechRxiv preprint,
+    %       https://www.techrxiv.org/users/684320/articles/1263073-the-generalized-beamformer-in-the-ultrasound-toolbox
     
     %   authors: Alfonso Rodriguez-Molares (alfonso.r.molares@ntnu.no)
     %   $Date: 2017/09/22 $
