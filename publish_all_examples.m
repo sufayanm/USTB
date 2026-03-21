@@ -1,10 +1,14 @@
-function publish_all_examples(output_root)
+function publish_all_examples(output_root, eval_code)
 %PUBLISH_ALL_EXAMPLES Publish all USTB example scripts to HTML
 %
-%   publish_all_examples() publishes all .m files under examples/ to HTML,
-%   preserving the folder structure. Output goes to examples_html/ by default.
+%   publish_all_examples() publishes all .m files under examples/ to HTML
+%   with code execution enabled, preserving the folder structure. Output
+%   goes to examples_html/ by default.
 %
 %   publish_all_examples(output_root) writes HTML to the specified folder.
+%
+%   publish_all_examples(output_root, eval_code) controls whether code is
+%   executed (default: true). Set to false for a fast code-only pass.
 %
 %   After publishing, run generate_examples_index.py to create the index page.
 %
@@ -12,6 +16,9 @@ function publish_all_examples(output_root)
 
 if nargin < 1
     output_root = fullfile(fileparts(mfilename('fullpath')), 'examples_html');
+end
+if nargin < 2
+    eval_code = true;
 end
 
 ustb_root = fileparts(mfilename('fullpath'));
@@ -28,6 +35,8 @@ skip_dirs = {fullfile('FLUST','Core'), fullfile('FLUST','Estimators'), ...
 all_m = dir(fullfile(examples_dir, '**', '*.m'));
 
 addpath(genpath(ustb_root));
+
+set(0, 'DefaultFigureVisible', 'off');
 
 succeeded = {};
 failed = {};
@@ -61,12 +70,15 @@ for k = 1:numel(all_m)
     opts.outputDir = out_dir;
     opts.format = 'html';
     opts.showCode = true;
-    opts.evalCode = false;
+    opts.evalCode = eval_code;
     opts.catchError = true;
     opts.createThumbnail = false;
+    opts.maxOutputLines = Inf;
 
     fprintf('[PUB]   %s ... ', strrep(src, [ustb_root filesep], ''));
+    original_dir = pwd;
     try
+        cd(all_m(k).folder);
         publish(src, opts);
         fprintf('OK\n');
         succeeded{end+1} = src; %#ok<AGROW>
@@ -74,6 +86,8 @@ for k = 1:numel(all_m)
         fprintf('FAILED: %s\n', me.message);
         failed{end+1} = src; %#ok<AGROW>
     end
+    cd(original_dir);
+    close all;
 end
 
 fprintf('\n=== Summary ===\n');
@@ -88,5 +102,7 @@ if ~isempty(failed)
         fprintf('  %s\n', failed{k});
     end
 end
+
+set(0, 'DefaultFigureVisible', 'on');
 
 end

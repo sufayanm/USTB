@@ -60,7 +60,7 @@ jobs:
       - name: Publish examples to HTML
         uses: matlab-actions/run-command@v2
         with:
-          command: publish_all_examples(fullfile(pwd,'docs','_build','html','examples'))
+          command: publish_all_examples(fullfile(pwd,'docs','_build','html','examples'), true)
 
       # --- Generate examples index ---
       - name: Generate examples index page
