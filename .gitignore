@@ -25,3 +25,4 @@ log_*.txt
 *.eps
 *.m~
 *.zip
+docs/_build/
