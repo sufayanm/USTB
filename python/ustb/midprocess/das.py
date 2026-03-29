@@ -89,7 +89,7 @@ class DAS:
             sequence = [sequence]
 
         for n_wave, wave in enumerate(sequence):
-            wf = wave.wavefront
+            wf_val = wave.wavefront.value if hasattr(wave.wavefront, 'value') else int(wave.wavefront)
             src = wave.source
             src_x, src_y, src_z = float(src.x), float(src.y), float(src.z)
             src_az = float(src.azimuth)
@@ -97,7 +97,7 @@ class DAS:
             src_dist = float(src.distance)
             wave_ss = float(wave.sound_speed) if wave.sound_speed is not None else float(self.channel_data.sound_speed)
 
-            if wf == Wavefront.spherical or wf == int(Wavefront.spherical):
+            if wf_val == int(Wavefront.spherical):
                 if np.isinf(src_dist):
                     transmit_delay[:, n_wave] = (
                         scan_z * np.cos(src_az) * np.cos(src_el)
@@ -117,14 +117,14 @@ class DAS:
                             transmit_delay, n_wave, dist, wave, scan_x, scan_y, scan_z, src_az, src_el, src_dist
                         )
 
-            elif wf == Wavefront.plane or wf == int(Wavefront.plane):
+            elif wf_val == int(Wavefront.plane):
                 transmit_delay[:, n_wave] = (
                     scan_z * np.cos(src_az) * np.cos(src_el)
                     + scan_x * np.sin(src_az) * np.cos(src_el)
                     + scan_y * np.sin(src_el)
                 )
 
-            elif wf == Wavefront.photoacoustic or wf == int(Wavefront.photoacoustic):
+            elif wf_val == int(Wavefront.photoacoustic):
                 transmit_delay[:, n_wave] = 0.0
 
             wave_delay = float(wave.delay) if wave.delay is not None else 0.0
@@ -134,7 +134,7 @@ class DAS:
         self.transmit_delay = transmit_delay
 
         # Channel data
-        ch_data = np.array(self.channel_data.data, dtype=np.float32)
+        ch_data = np.asarray(self.channel_data.data)
         if ch_data.ndim == 2:
             ch_data = ch_data[:, :, np.newaxis, np.newaxis]
         elif ch_data.ndim == 3:
@@ -142,7 +142,9 @@ class DAS:
 
         if abs(w0) < np.finfo(np.float32).eps:
             from scipy.signal import hilbert
-            ch_data = hilbert(ch_data, axis=0).astype(np.complex64)
+            ch_data = hilbert(ch_data.real.astype(np.float32), axis=0).astype(np.complex64)
+        else:
+            ch_data = ch_data.astype(np.complex64)
 
         # Time axis
         N_samples = ch_data.shape[0]
