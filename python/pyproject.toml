@@ -24,15 +24,12 @@ classifiers = [
 dependencies = [
     "numpy",
     "scipy",
+    "matplotlib",
     "pyuff-ustb>=3.0.0",
 ]
 
 [project.optional-dependencies]
-plot = ["matplotlib"]
-dev = [
-    "matplotlib",
-    "pytest",
-]
+dev = ["pytest"]
 
 [project.urls]
 Homepage = "https://www.ustb.no"

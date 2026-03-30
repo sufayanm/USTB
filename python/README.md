@@ -8,12 +8,6 @@ Python reimplementation of the [UltraSound ToolBox (USTB)](https://www.ustb.no) 
 pip install ustb
 ```
 
-Or with plotting support:
-
-```bash
-pip install ustb[plot]
-```
-
 For development:
 
 ```bash
