@@ -27,7 +27,9 @@ def plot_beamformed_data(b_data, title="", dynamic_range=60):
     if hasattr(scan, "azimuth_axis") and scan.azimuth_axis is not None:
         N_az = len(scan.azimuth_axis)
         N_depth = len(scan.depth_axis)
-        img_2d = img_db.reshape(N_az, N_depth).T
+        # pyuff_ustb uses meshgrid(depth, az, indexing='ij') with C-order flatten:
+        # result shape is (N_depth, N_az) when reshaped
+        img_2d = img_db.reshape(N_depth, N_az)
 
         fig, ax = plt.subplots(1, 1, figsize=(8, 8))
         extent = [
