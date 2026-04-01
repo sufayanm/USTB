@@ -50,7 +50,6 @@ all_m = dir(fullfile(examples_dir, '**', '*.m'));
 
 addpath(genpath(ustb_root));
 
-set(0, 'DefaultFigureVisible', 'off');
 
 succeeded = {};
 failed = {};
@@ -125,6 +124,5 @@ if ~isempty(failed)
     end
 end
 
-set(0, 'DefaultFigureVisible', 'on');
 
 end
