@@ -21,7 +21,8 @@ function download(file, url, local_path)
 if nargin > 2 
     path = local_path;  % The third argument used to be the path
     % Strip trailing slash from base URL so we do not produce .../datasets//file.uff
-    % or Zenodo .../files//name.uff (some servers return 404 for the double slash).
+    % or Zenodo .../files//name.uff (some servers return 404 for the double slash,
+    % e.g. GitHub Actions).
     base = url;
     while ~isempty(base) && base(end) == '/'
         base = base(1:end-1);
