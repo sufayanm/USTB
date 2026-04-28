@@ -14,7 +14,7 @@
 % The dataset is downloaded from Zenodo
 fn = 'STAI_UFF_CIRS_phantom.uff';
 local_path = [ustb_path(), '/data/'];
-url = tools.zenodo_record_files_base('19651299');
+url = tools.zenodo_record_files_base('19860810');
 tools.download(fn, url, local_path);
 uff_file = fullfile(local_path, fn);
 channel_data = uff.read_object(uff_file, '/channel_data');
