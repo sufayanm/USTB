@@ -6,6 +6,13 @@ An open source MATLAB toolbox for beamforming, processing, and visualization of 
 * [Department of Informatics of the University of Oslo](http://www.uio.no/), and
 * [CREATIS Laboratory of the University of Lyon](https://www.creatis.insa-lyon.fr/site7/en).
 
+### Repository mirrors ###
+
+The USTB source is available from **both** of these official locations; use whichever host you prefer for cloning or forking:
+
+* **GitHub:** [github.com/unioslo/USTB](https://github.com/unioslo/USTB)
+* **Bitbucket:** [bitbucket.org/ustb/ustb](https://bitbucket.org/ustb/ustb)
+
 ### How do I get set up? ###
 
 * Just clone the repository and add the folder (without subfolders) to MATLAB's path
@@ -15,6 +22,8 @@ An open source MATLAB toolbox for beamforming, processing, and visualization of 
 The USTB is made possible through the contribution of several labs around the world. It contains pieces of intellectual property from many authors, and because of that different references must be cited depending on your use of USTB. There are three kinds of intellectual properties that must be acknowledged: datasets, processes, and the toolbox itself. Please se our website http://www.ustb.no/citation/ for details on how to properly refence the intellectual property. Be sure to reference our proceedings paper from IUS (IEEE International Ultrasonics Symposium) 2017 whenever you are using the toolbox in research or other publications:
 
 * Rodriguez-Molares, A., Rindal, O. M. H., Bernard, O., Nair, A., Bell, M. A. L., Liebgott, H., Austeng, A., Løvstakken, L. (2017). *The UltraSound ToolBox.* IEEE International Ultrasonics Symposium, IUS, 1–4. https://doi.org/10.1109/ULTSYM.2017.8092389
+
+Machine-readable citation metadata: [`CITATION.cff`](CITATION.cff) (GitHub citation / CFF) and [`citation.bib`](citation.bib) (BibTeX) at the repository root. The code is released under the [MIT License](LICENSE); citation expectations for research are separate from that license (see the website citation page).
 
 ### Current version ###
 

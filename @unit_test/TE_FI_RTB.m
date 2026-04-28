@@ -4,15 +4,18 @@ function ok = TE_FI_RTB(h)
 % compares it with previously beamformed data (USTB develop before merge Feb 2020)
 % Author Ole Marius Hoel Rindal (olemarius@olemarius.net)
 
-% data location
-url='https://www.ustb.no/datasets/';      % if not found downloaded from here
+% Two different files (two downloads if missing; tools.download skips if present):
+%   - L7_FI_IUS2018.uff from Zenodo (test input)
+%   - reference_RTB_data.uff from ustb.no only (regression bundle; not on Zenodo)
+url_zenodo = tools.zenodo_dataset_files_base();
+url_ustb = 'https://www.ustb.no/datasets/';
 filename='L7_FI_IUS2018.uff';
 filename_reference='reference_RTB_data.uff';
 data_path=fullfile(ustb_path(), 'data');
 
 % Downlad data if needed
-tools.download(filename, url, data_path);
-tools.download(filename_reference, url, data_path);
+tools.download(filename, url_zenodo, data_path);
+tools.download(filename_reference, url_ustb, data_path);
 
 % Load channel data
 channel_data=uff.read_object(fullfile(data_path, filename),'/channel_data');
@@ -45,6 +48,7 @@ mid_RTB.transmit_apodization.window=uff.window.tukey25;
 mid_RTB.transmit_apodization.f_number = 2;
 mid_RTB.transmit_apodization.MLA = MLA;
 mid_RTB.transmit_apodization.MLA_overlap = MLA;
+mid_RTB.code = code.matlab;
 
 % Fix to Issue #132 S.F. 16.02.2023
 mid_RTB.transmit_apodization.minimum_aperture = [3e-3, 3e-3] ./ mid_RTB.transmit_apodization.f_number.^2; 

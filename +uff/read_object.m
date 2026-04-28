@@ -1,20 +1,20 @@
 function object = read_object(filename, location, verbose)
-%% READ_OBJECT  Reads object from location
+%READ_OBJECT   Read a UFF object from an HDF5 file
 %
-%   This UFF method delivers the object stored in the specified location
-%   of a UFF file.
+%   Reads and reconstructs a USTB object stored at the given location
+%   within a UFF (.uff / .h5) file.
 %
-%   READ_OBJECT(filename, location, verbose)
+%   object = uff.read_object(filename, location, verbose)
 %
 %   Parameters:
-%       filename    Name and path to the UFF file
-%       location    Location within the UFF file
-%       verbose     Flag to get text messages
+%       filename    path to the UFF file
+%       location    HDF5 group path (default: '/')
+%       verbose     display progress messages (default: true)
 %
 %   Example:
-%       chndata=uff.read_object('test.uff','/channel_data');
+%       ch = uff.read_object('data.uff', '/channel_data');
 %
-%   See also UFF.READ, UFF.WRITE, UFF.INFO
+%   See also UFF.WRITE_OBJECT, UFF.INDEX, UFF.VERSION
 
 flag_v10X=false;
 flag_v11X=false;
@@ -143,6 +143,11 @@ else
                         else
                             object.(prop{m}.name)=uff.read_object(filename,prop{m}.location,verbose);
                         end
+                    end
+
+                    % Post-read: fix origin for focused waves from old UFF files
+                    if isa(object, 'uff.wave')
+                        object.fix_origin_from_source();
                     end
                 end
             else
